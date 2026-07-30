@@ -1,0 +1,23 @@
+{% if listing.status == "draft" or listing.status == "changes_requested" %}
+  <form method="post" action="{% url 'listings:submit_draft' listing.id %}">
+    {% csrf_token %}
+    {% if required_listing_policies %}
+      <fieldset>
+        <legend>Required listing policies</legend>
+        {% for document in required_listing_policies %}
+          <p><a href="{% url 'policies:document' document.kind %}" target="_blank" rel="noopener">{{ document.title }} (version {{ document.version }})</a></p>
+        {% endfor %}
+        <label><input type="checkbox" name="accept_listing_policies" value="yes" required> I have read and accept these current policies for this listing.</label>
+      </fieldset>
+    {% endif %}
+    <button type="submit">{% if listing.status == "changes_requested" %}Resubmit for moderation{% else %}Submit for moderation{% endif %}</button>
+  </form>
+{% elif listing.status == "awaiting_payment" %}
+  <p class="help-text">Local demo payment is awaiting staff-recorded confirmation. This listing is not public.</p>
+{% elif listing.status == "in_review" or listing.status == "submitted" %}
+  <p class="help-text">This listing is awaiting moderator review and is not public.</p>
+{% elif listing.status == "published" %}
+  <p class="help-text">This listing is published. Material edits will return it to moderation.</p>
+{% else %}
+  <p class="help-text">This listing cannot be submitted in its current status.</p>
+{% endif %}

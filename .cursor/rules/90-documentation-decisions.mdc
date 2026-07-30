@@ -1,0 +1,22 @@
+---
+description: Documentation, decision traceability, feature specifications, and completion reporting.
+globs:
+  - "docs/**/*.md"
+  - "templates/**/*.md"
+  - "README.md"
+  - "START-HERE.md"
+  - "PROJECT-BLUEPRINT.md"
+alwaysApply: false
+---
+
+# Documentation and decisions
+
+- Separate stakeholder requirements, accepted engineering decisions, assumptions, and unresolved questions.
+- Do not retroactively rewrite accepted ADR history. Supersede it with a new ADR.
+- Every non-trivial feature has a spec with: problem, scope, non-goals, actors/permissions, behavior, state/data changes, errors, security/privacy, observability, migrations, tests, rollout, rollback, and acceptance criteria.
+- Use concrete dates and versions in operational records. Avoid “latest” without a checked date.
+- Update the roadmap and backlog when scope or sequencing changes.
+- Update diagrams when state transitions, boundaries, or payment/moderation flow changes.
+- Document commands that were actually verified. Mark examples clearly when not run.
+- Completion notes list files changed, migrations, tests/commands run and results, operational changes, unresolved issues, and rollback considerations.
+- Keep policy decisions in ADRs/product docs, not only in code comments or chat history.

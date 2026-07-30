@@ -1,0 +1,84 @@
+[project]
+name = "county-post-marketplace"
+version = "0.1.0"
+description = "TheCountyPost Market regional classifieds marketplace"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "argon2-cffi>=25,<26",
+  "Django>=5.2.16,<5.3",
+  "dj-database-url>=2.3,<3",
+  "django-environ>=0.12,<1",
+  "django-storages[s3]>=1.14,<2",
+  "gunicorn>=23,<24",
+  "psycopg[binary,pool]>=3.2,<4",
+  "whitenoise[brotli]>=6.9,<7",
+  "pillow>=11,<13",
+]
+
+[dependency-groups]
+dev = [
+  "django-stubs[compatible-mypy]>=5.2,<6",
+  "mypy>=1.17,<2",
+  "pip-audit>=2.9,<3",
+  "pre-commit>=4.2,<5",
+  "pytest>=8.4,<10",
+  "pytest-cov>=6.2,<8",
+  "pytest-django>=4.11,<5",
+  "pytest-playwright>=0.7,<1",
+  "ruff>=0.12,<1",
+]
+
+[tool.uv]
+package = false
+required-version = ">=0.11.29,<0.12"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+pythonpath = ["src"]
+testpaths = ["src"]
+addopts = ["--strict-config", "--strict-markers", "-ra", "--cov=src", "--cov-branch", "--cov-report=term-missing:skip-covered", "--cov-fail-under=85"]
+markers = ["e2e: browser tests that require a Playwright browser installation"]
+
+[tool.coverage.run]
+omit = ["src/manage.py", "src/config/*", "src/**/admin.py", "src/**/apps.py", "src/**/migrations/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["src"]
+extend-exclude = ["scaffold", "src/**/migrations/*.py"]
+
+[tool.ruff.lint]
+select = ["A", "ARG", "B", "BLE", "DJ", "E", "F", "I", "N", "PL", "PTH", "RET", "RUF", "S", "SIM", "T20", "UP", "W"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/**/tests/**/*.py" = ["ARG", "PLR2004", "S"]
+"src/config/settings/*.py" = ["F403", "F405", "S105"]
+"src/**/models.py" = ["A003", "RUF012"]
+"src/manage.py" = ["PLC0415"]
+"scripts/*.py" = ["T201"]
+"scripts/install_scaffold.py" = ["E501", "T201"]
+"scripts/validate_cursor_kit.py" = ["PERF203", "PLR0912", "PLR0915", "PLR2004", "T201"]
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["mypy_django_plugin.main"]
+strict = true
+warn_unreachable = true
+exclude = ["/migrations/"]
+mypy_path = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["config.settings.*"]
+ignore_errors = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings.test"
+strict_settings = true
+strict_model_abstract_attrs = true

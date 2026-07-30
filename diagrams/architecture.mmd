@@ -1,0 +1,17 @@
+flowchart TD
+    U[Buyer / Seller / Staff Browser] --> DNS[Route 53 + ACM]
+    DNS --> ALB[ECS Express Mode / Application Load Balancer]
+    ALB --> WEB[Django Web Tasks]
+    WEB --> DB[(RDS PostgreSQL 18)]
+    WEB --> S3[(S3 private staging/processed media)]
+    WEB --> STRIPE[Stripe Checkout + Webhooks]
+    WEB --> SECRETS[Secrets Manager]
+    WEB --> LOGS[CloudWatch]
+    WORKER[Django Outbox Worker] --> DB
+    WORKER --> SES[Amazon SES]
+    WORKER --> S3
+    WORKER --> STRIPE
+    WORKER --> LOGS
+    EVENT[EventBridge Scheduler] --> JOBS[ECS one-off management commands]
+    JOBS --> DB
+    S3 --> CF[CloudFront media delivery]

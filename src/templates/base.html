@@ -1,0 +1,88 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    {% block robots_meta %}{% if seo_metadata.robots %}<meta name="robots" content="{{ seo_metadata.robots }}">{% endif %}{% endblock %}
+    {% block canonical %}{% if seo_metadata %}<link rel="canonical" href="{{ seo_metadata.canonical_url }}">{% endif %}{% endblock %}
+    <title>{% block title %}{% if seo_metadata %}{{ seo_metadata.title }}{% else %}TheCountyPost Market{% endif %}{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}{% if seo_metadata %}{{ seo_metadata.description }}{% else %}Browse trusted, moderated regional listings on TheCountyPost Market.{% endif %}{% endblock %}">
+    {% if seo_metadata %}
+      <meta property="og:title" content="{{ seo_metadata.title }}">
+      <meta property="og:description" content="{{ seo_metadata.description }}">
+      <meta property="og:type" content="website">
+      <meta property="og:url" content="{{ seo_metadata.canonical_url }}">
+      {% if seo_metadata.image_url %}
+        <meta property="og:image" content="{{ seo_metadata.image_url }}">
+        <meta property="og:image:width" content="{{ seo_metadata.image_width }}">
+        <meta property="og:image:height" content="{{ seo_metadata.image_height }}">
+      {% endif %}
+      <meta name="twitter:card" content="{% if seo_metadata.image_url %}summary_large_image{% else %}summary{% endif %}">
+      <meta name="twitter:title" content="{{ seo_metadata.title }}">
+      <meta name="twitter:description" content="{{ seo_metadata.description }}">
+      {% if seo_metadata.image_url %}<meta name="twitter:image" content="{{ seo_metadata.image_url }}">{% endif %}
+    {% endif %}
+    <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <script src="{% static 'js/live-search.js' %}" defer></script>
+    <script src="{% static 'js/navigation.js' %}" defer></script>
+  </head>
+  <body>
+    <div class="page">
+      <a class="skip-link" href="#main-content">Skip to main content</a>
+      <header class="site-header" data-site-header>
+        <a class="site-brand" href="/" aria-label="TheCountyPost Market home"{% if request.resolver_match.namespace == "core" and request.resolver_match.url_name == "home" %} aria-current="page"{% endif %}>
+          <span class="site-brand-main">The County Post</span>
+          <span class="site-brand-sub">Marketplace</span>
+        </a>
+        <div class="header-actions">
+          {% if user.is_authenticated %}
+            {% if user.account_status == "active" %}
+              <a class="button-link header-create-link" href="{% url 'listings:create_listing' %}">Create listing</a>
+            {% endif %}
+          {% endif %}
+          <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation" data-nav-toggle>
+            <span aria-hidden="true">☰</span>
+            <span>Menu</span>
+          </button>
+        </div>
+        <nav id="primary-navigation" class="header-links" aria-label="Primary navigation" data-primary-navigation>
+          {% if user.is_authenticated %}
+            <a class="market-link" href="{% url 'listings:dashboard' %}"{% if request.resolver_match.namespace == "listings" and request.resolver_match.url_name == "dashboard" %} aria-current="page"{% endif %}>Dashboard</a>
+            <a class="market-link" href="{% url 'listings:favorites' %}"{% if request.resolver_match.namespace == "listings" and request.resolver_match.url_name == "favorites" %} aria-current="page"{% endif %}>Saved listings</a>
+            <a class="market-link" href="{% url 'accounts:seller_profile' %}"{% if request.resolver_match.namespace == "accounts" and request.resolver_match.url_name == "seller_profile" %} aria-current="page"{% endif %}>Account</a>
+            {% if user.is_staff %}
+              <a class="market-link" href="{% url 'management_console:dashboard' %}">Manage</a>
+            {% endif %}
+            <form class="inline-form" method="post" action="{% url 'accounts:logout' %}">
+              {% csrf_token %}
+              <button class="market-link" type="submit">Log out</button>
+            </form>
+          {% else %}
+            <a class="market-link" href="{% url 'accounts:login' %}">Log in</a>
+            <a class="market-link" href="{% url 'accounts:register' %}">Register</a>
+          {% endif %}
+          <a class="market-link" href="https://thecountypost.com">County Post news</a>
+        </nav>
+      </header>
+      {% if messages %}
+        <div class="container message-list" aria-live="polite">
+          {% for message in messages %}
+            <div class="message message--{{ message.tags|default:'info' }}" {% if 'error' in message.tags %}role="alert"{% else %}role="status"{% endif %}>{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+      <main id="main-content" class="container" tabindex="-1">{% block content %}{% endblock %}</main>
+      <footer class="site-footer">
+        <p><strong>The County Post</strong> <span aria-hidden="true">·</span> Market</p>
+        <p>Regional listings reviewed before publication.</p>
+        <nav aria-label="Footer navigation">
+          <a href="{% url 'core:home' %}">Market home</a>
+          <a href="{% url 'locations:market_finder' %}">Find a market</a>
+        </nav>
+      </footer>
+    </div>
+  </body>
+</html>

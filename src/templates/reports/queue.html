@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Listing reports | Management{% endblock %}
+{% block content %}
+<section class="panel" aria-labelledby="reports-queue-title">
+  <h1 id="reports-queue-title">Listing reports</h1>
+  <p>Open: {{ metrics.open }} · Acknowledged: {{ metrics.acknowledged }} · Escalated: {{ metrics.escalated }}</p>
+  {% if report_rows %}
+    {% for row in report_rows %}
+    {% with report=row.report form=row.form %}
+    <article aria-labelledby="report-{{ report.id }}-title">
+      <h2 id="report-{{ report.id }}-title">{{ report.listing.title }}</h2>
+      <p><strong>{{ report.get_reason_display }}</strong> · {{ report.get_state_display }} · {{ report.created_at }}</p>
+      <p>{{ report.description|linebreaksbr }}</p>
+      {% if report.listing_is_public %}
+        <p><a href="{% url 'locations:listing_detail' report.listing.state.slug report.listing.county.slug report.listing.id %}">View public listing</a></p>
+      {% endif %}
+      {% if can_moderate_listings %}
+        <p><a href="{% url 'listings:moderation_queue' %}">Open moderation queue</a></p>
+      {% endif %}
+      {% if report.reporter_email %}
+        <p><strong>Reporter contact:</strong> {{ report.reporter_email }}</p>
+      {% elif report.reporter %}
+        <p><strong>Reporter contact:</strong> {{ report.reporter.email }}</p>
+      {% endif %}
+      <form method="post" action="{% url 'reports:triage' report.id %}">
+        {% csrf_token %}
+        <fieldset>
+          <legend>Record a triage action for this report</legend>
+          <p>{{ form.action.label_tag }} {{ form.action }}</p>
+          <p>{{ form.internal_note.label_tag }} {{ form.internal_note }}</p>
+        </fieldset>
+        <button type="submit">Record action</button>
+      </form>
+      {% if report.actions.all %}
+      <details><summary>Audit history for this report</summary><ul>{% for action in report.actions.all %}<li>{{ action.created_at }} — {{ action.get_action_type_display }}{% if action.actor %} by {{ action.actor.email }}{% endif %}{% if action.internal_note %}: {{ action.internal_note }}{% endif %}</li>{% endfor %}</ul></details>
+      {% endif %}
+    </article>
+    {% endwith %}
+    {% endfor %}
+  {% else %}<p>No open listing reports.</p>{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,26 @@
+---
+description: Marketplace data modeling and listing lifecycle constraints.
+globs:
+  - "src/apps/**/models.py"
+  - "src/apps/**/models/**/*.py"
+  - "src/apps/**/services/**/*.py"
+  - "src/apps/**/selectors/**/*.py"
+  - "docs/02-DOMAIN-MODEL.md"
+  - "docs/03-LISTING-LIFECYCLE.md"
+alwaysApply: false
+---
+
+# Domain model rules
+
+- Use a shared `Listing` model for common fields and explicit one-to-one typed detail models for each vertical.
+- Do not implement an entity-attribute-value schema. JSONB is permitted only for infrequently queried extension metadata and never for core filters, sort keys, prices, location, or lifecycle state.
+- Use immutable UUID public identifiers. Do not expose sequential primary keys in public URLs or APIs.
+- Store state and county as validated foreign keys/reference data. Store city as normalized user-entered locality unless an accepted ADR changes it.
+- Every externally visible listing query must use the centralized public-visibility selector/policy.
+- Listing transitions must use the transition service and the allowed transition graph. Never assign status directly from a view, form, template, admin action, webhook, or scheduled job.
+- Every transition records actor, previous/new state, reason code, safe note, correlation identifier, and timestamp.
+- Price is stored in integer minor units with an ISO currency code.
+- Filtering/sorting fields use normal typed columns and deliberate indexes.
+- Use database constraints for one-detail-row-per-listing, non-negative values, required field combinations, unique external IDs, and mutually exclusive states where feasible.
+- Archive rather than hard-delete records needed for payment, moderation, abuse, audit, or legal history.
+- Never expose VIN, private moderation notes, phone-verification data, payment metadata, or internal risk signals through public serializers/templates.

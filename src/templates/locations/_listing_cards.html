@@ -1,0 +1,43 @@
+{% load listing_format %}
+<ul class="listing-cards" aria-label="Public listings">
+{% for card in listing_cards %}
+  {% with listing=card.listing presentation=card.presentation %}
+    <li>
+      <article class="listing-card">
+        {% if card.image %}
+          <a class="listing-card-image-link" href="{% url 'locations:listing_detail' listing.state.slug listing.county.slug listing.id %}">
+            <img class="listing-card-image" src="{% url 'locations:public_listing_image' card.image.id %}" alt="{{ listing.title }} image" width="{{ card.image.width }}" height="{{ card.image.height }}" loading="lazy" decoding="async">
+          </a>
+        {% else %}
+          <div class="listing-card-image listing-card-image--empty" aria-label="No image available">No image available</div>
+        {% endif %}
+        <header>
+          <p class="listing-card-label">{% if listing.vertical.slug == "others" %}Others{% else %}{{ listing.vertical.name }} · {{ listing.category.name }}{% endif %}</p>
+          <h3><a href="{% url 'locations:listing_detail' listing.state.slug listing.county.slug listing.id %}">{{ listing.title }}</a></h3>
+        </header>
+        <p class="listing-card-spec">{{ presentation.summary }}</p>
+        <p class="listing-card-price">{{ listing.price_minor|listing_price:listing.currency }}</p>
+        <dl class="listing-card-meta">
+          {% for label, value in presentation.facts %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}
+          <div>
+            <dt>Location</dt>
+            <dd>{{ presentation.location }}</dd>
+          </div>
+          {% if show_nearby_distance %}
+            <div>
+              <dt>County</dt>
+              <dd>{{ listing.county.name }}, {{ listing.state.usps_code }}</dd>
+            </div>
+            <div>
+              <dt>Distance</dt>
+              <dd>About {{ card.distance_miles }} miles away</dd>
+            </div>
+          {% endif %}
+        </dl>
+      </article>
+    </li>
+  {% endwith %}
+  {% empty %}
+    <li class="empty-state">No public listings match this search. Try a different market or clear one of the filters.</li>
+  {% endfor %}
+</ul>

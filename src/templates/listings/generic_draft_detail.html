@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ listing.title }} draft | TheCountyPost Market{% endblock %}
+{% block robots_meta %}<meta name="robots" content="noindex,nofollow,noarchive">{% endblock %}
+{% block content %}
+<section class="panel" aria-labelledby="draft-title">
+  <p class="eyebrow">Private listing draft</p>
+  <h1 id="draft-title">{{ listing.title }}</h1>
+  <dl class="listing-details">
+    <div><dt>Category</dt><dd>{{ listing.category.name }}</dd></div>
+    <div><dt>Public location</dt><dd>{{ listing.city }}, {{ listing.county.name }}, {{ listing.state.usps_code }}</dd></div>
+    <div><dt>Price mode</dt><dd>{{ details.get_price_mode_display }}</dd></div>
+    <div><dt>Private street address</dt><dd>{% if details.street_address %}Provided{% else %}Not provided{% endif %}</dd></div>
+  </dl>
+  <section aria-labelledby="pending-taxonomy-title">
+    <h2 id="pending-taxonomy-title">Tags and additional details</h2>
+    <p class="help-text">These seller-provided values remain private until this listing is approved and published.</p>
+    <dl class="listing-details">
+      <div><dt>Controlled subcategories</dt><dd>{% for tag in listing.controlled_tags.all %}{{ tag.category.name }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</dd></div>
+      <div><dt>Seller tags</dt><dd>{% for tag in listing.seller_tags.all %}{{ tag.value }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</dd></div>
+      <div><dt>Additional details</dt><dd>{% for field in listing.custom_fields.all %}{{ field.label }}: {{ field.value }}{% if not forloop.last %}; {% endif %}{% empty %}None{% endfor %}</dd></div>
+    </dl>
+  </section>
+  <p>Local demo quote: $10 primary placement plus $5 per additional county. It is informational only; submission goes to moderation without payment.</p>
+  {% if listing.status == "draft" or listing.status == "changes_requested" or listing.status == "published" %}<p><a class="button-link" href="{% url 'listings:edit_listing' listing.id %}">Edit listing</a></p>{% endif %}
+  {% include "listings/_submission_panel.html" %}
+</section>
+{% include "listings/_media_panel.html" %}
+{% endblock %}

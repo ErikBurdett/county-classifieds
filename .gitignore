@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.python-version.local
+.venv/
+venv/
+
+# Django
+.env
+.env.*
+!.env.example
+*.sqlite3
+media/
+staticfiles/
+
+# Tests and tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+junit.xml
+
+# IDE and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Build and package
+build/
+dist/
+*.egg-info/
+
+# Frontend, if introduced later
+node_modules/
+
+# Local infrastructure and secrets
+.aws/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+
+# Runtime/logs
+*.log
+run/
+tmp/
+
+# Brand capture working files; intentionally add approved references explicitly
+brand/raw-captures/

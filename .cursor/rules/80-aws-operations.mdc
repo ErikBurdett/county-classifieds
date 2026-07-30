@@ -1,0 +1,28 @@
+---
+description: Container, AWS, observability, and production-operability standards.
+globs:
+  - "Dockerfile"
+  - "compose*.yml"
+  - "infra/**/*"
+  - ".github/workflows/**/*"
+  - "config/settings/production.py"
+  - "scripts/**/*"
+  - "docs/10-AWS-DEPLOYMENT.md"
+  - "docs/11-OBSERVABILITY-RUNBOOK.md"
+alwaysApply: false
+---
+
+# AWS and operations
+
+- Build one immutable, non-root container image. Run web, worker, and scheduled management commands from the same image with different commands.
+- The web process is stateless. Do not rely on local filesystem persistence, in-memory queues, or sticky sessions.
+- Use ECS Express Mode for the web service unless an accepted ADR changes deployment. Use RDS PostgreSQL, S3, SES, Secrets Manager, CloudWatch, Route 53, and ACM according to least privilege.
+- Keep the database private. Do not expose RDS publicly.
+- Production configuration must fail closed when required secrets or host/security settings are missing.
+- Provide liveness and readiness endpoints. Readiness verifies application configuration and database reachability without depending on optional third parties.
+- Gracefully handle SIGTERM and deployment draining. Use bounded server/worker timeouts and explicit health-check timing.
+- Migrations run as a deliberate one-off release task, not concurrently in every web replica startup.
+- Use structured logs with correlation IDs and safe identifiers. Metrics must not use unbounded or personal-data labels.
+- Define alarms for availability, elevated 5xx, latency, task restarts, worker/outbox backlog, payment webhook failures, database pressure, and scheduled-task failure.
+- Infrastructure changes need reviewable IaC, environment separation, cost-impact notes, rollback/forward-fix steps, and runbook updates.
+- Never place AWS account IDs, secret ARNs, access keys, or production database endpoints in committed templates.

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ policy.title }} | TheCountyPost Market{% endblock %}
+{% block content %}
+  <article class="panel">
+    <p class="eyebrow">Policy · version {{ policy.version }}</p>
+    <h1>{{ policy.title }}</h1>
+    <div>{{ policy.body|linebreaks }}</div>
+  </article>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ listing.title }} | Your listing | TheCountyPost Market{% endblock %}
+{% block robots_meta %}<meta name="robots" content="noindex,nofollow,noarchive">{% endblock %}
+{% block content %}
+<article class="panel" aria-labelledby="listing-title">
+  <p class="eyebrow">Your listing · {{ listing.get_status_display }}</p>
+  <h1 id="listing-title">{{ listing.title }}</h1>
+  {% if listing.status != "published" %}<p class="help-text">Private or pending: only you and authorized staff can see this listing and its seller-provided details until it is approved and published.</p>{% endif %}
+  <dl class="listing-details">
+    <div><dt>Primary category</dt><dd>{{ listing.category.name }}</dd></div>
+    <div><dt>Location</dt><dd>{{ listing.city }}, {{ listing.county.name }}, {{ listing.state.usps_code }}</dd></div>
+    <div><dt>Broker or brokerage status</dt><dd>{% if listing.broker_name %}{{ listing.broker_name }}{% if listing.status != "published" %} (pending public display){% endif %}{% else %}Not provided{% endif %}</dd></div>
+  </dl>
+  <section aria-labelledby="owner-taxonomy-title">
+    <h2 id="owner-taxonomy-title">Tags and additional details{% if listing.status != "published" %} (private/pending){% endif %}</h2>
+    <dl class="listing-details">
+      <div><dt>Controlled secondary tags</dt><dd>{% for tag in secondary_controlled_tags %}{{ tag.category.name }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</dd></div>
+      <div><dt>Seller tags{% if listing.status != "published" %} (pending public display){% endif %}</dt><dd>{% for tag in listing.seller_tags.all %}{{ tag.value }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</dd></div>
+      <div><dt>Additional details{% if listing.status != "published" %} (pending public display){% endif %}</dt><dd>{% for field in listing.custom_fields.all %}{{ field.label }}: {{ field.value }}{% if not forloop.last %}; {% endif %}{% empty %}None{% endfor %}</dd></div>
+      {% if profile_attributes %}<div><dt>Category profile details{% if listing.status != "published" %} (private/pending){% endif %}</dt><dd>{% for label, value in profile_attributes %}{{ label }}: {{ value }}{% if not forloop.last %}; {% endif %}{% endfor %}</dd></div>{% endif %}
+    </dl>
+  </section>
+  <h2>Description</h2>
+  <p>{{ listing.description|linebreaksbr }}</p>
+  {% if listing.status == "draft" or listing.status == "changes_requested" or listing.status == "published" %}<p><a class="button-link" href="{% url 'listings:edit_listing' listing.id %}">Edit listing</a></p>{% endif %}
+  {% include "listings/_submission_panel.html" %}
+</article>
+{% include "listings/_media_panel.html" %}
+{% endblock %}

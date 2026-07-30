@@ -1,0 +1,22 @@
+<section class="market-finder" aria-labelledby="market-finder-title">
+  <div>
+    <p class="eyebrow">Nationwide market directory</p>
+    <h2 id="market-finder-title">Find your market</h2>
+    <p class="market-finder-copy">Search every active Census state and county. Markets with no listings are still available to visit.</p>
+  </div>
+  <form class="market-finder-form" method="get" action="{% url 'locations:market_finder' %}" data-live-search="market">
+    {% if location_finder_form.non_field_errors %}
+      <div class="error-summary" role="alert">{{ location_finder_form.non_field_errors }}</div>
+    {% endif %}
+    <div class="form-field">
+      <label for="{{ location_finder_form.q.id_for_label }}">{{ location_finder_form.q.label }}</label>
+      {{ location_finder_form.q }}
+      {% if location_finder_form.q.errors %}<span class="field-error" role="alert">{{ location_finder_form.q.errors|join:", " }}</span>{% endif %}
+    </div>
+    <div class="market-finder-actions">
+      <button type="submit">Search markets</button>
+    </div>
+    <p class="live-search-status" role="status" aria-live="polite" aria-atomic="true"></p>
+  </form>
+  <noscript><p class="no-js-note">Search markets with the button above.</p></noscript>
+</section>

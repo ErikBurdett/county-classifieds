@@ -1,0 +1,12 @@
+flowchart LR
+    A[Pending moderation] --> B[Moderator claims]
+    B --> C{Review}
+    C -->|Approve| D[Active + history + notifications]
+    C -->|Request changes| E[Changes requested + seller guidance]
+    E --> F[Seller edits/resubmits]
+    F --> A
+    C -->|Reject| G[Rejected + policy/refund follow-up]
+    C -->|Escalate| H[Senior review case]
+    D -->|Post-publication issue| I[Suspended]
+    I -->|Resolved| D
+    I -->|Closed| J[Archived]

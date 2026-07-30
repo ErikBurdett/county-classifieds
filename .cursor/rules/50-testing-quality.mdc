@@ -1,0 +1,26 @@
+---
+description: Test design, quality gates, and evidence requirements.
+globs:
+  - "tests/**/*.py"
+  - "**/tests/**/*.py"
+  - "test_*.py"
+  - "*_test.py"
+  - "pyproject.toml"
+  - ".github/workflows/*.yml"
+alwaysApply: false
+---
+
+# Testing and quality
+
+- Prefer behavior tests over implementation-detail tests.
+- Use pytest and pytest-django. Keep tests deterministic; freeze time where lifecycle behavior depends on time.
+- Each feature tests: permissions/ownership, validation boundaries, state transitions, failure behavior, and the primary happy path.
+- Add database constraint tests for critical invariants.
+- Add query-count or query-shape tests to high-traffic lists and staff queues when regressions are plausible.
+- Webhook and scheduled work must test duplicates, replay, out-of-order delivery, partial failure, and retry.
+- Upload tests must use hostile filenames, wrong MIME/magic bytes, oversized dimensions, metadata, duplicate/reordered images, and unauthorized object keys.
+- Search tests cover state/county scope, category/vertical filters, visibility, featured placement, sorting, pagination, and malformed query values.
+- UI tests cover form errors and critical end-to-end flows; do not use browser tests for every branch that can be covered lower in the pyramid.
+- Tests may not call real Stripe, SMS, email, S3, or AWS endpoints.
+- A changed behavior is incomplete until the relevant tests are added or the feature spec documents why existing coverage is sufficient.
+- Do not weaken assertions, skip tests, or lower coverage solely to make CI pass.

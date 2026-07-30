@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+  <body>
+    <h1>{{ listing_title }}</h1>
+    {% if event_type == "listing.approved" %}<p>Your listing has been approved and is now visible to shoppers.</p>
+    {% elif event_type == "listing.changes_requested" %}<p>Please review the requested changes before resubmitting your listing.</p>
+    {% elif event_type == "listing.rejected" %}<p>Your listing was not approved.</p>
+    {% elif event_type == "listing.sold" %}<p>Your listing is marked as sold and is no longer public.</p>
+    {% elif event_type == "listing.expired" %}<p>Your listing has expired and is no longer public.</p>
+    {% elif event_type == "listing.expiration_reminder" %}<p>Your listing expires in {{ days_remaining }} day{{ days_remaining|pluralize }}.</p>
+    {% endif %}
+    {% if seller_message %}<p>{{ seller_message }}</p>{% endif %}
+  </body>
+</html>

@@ -1,0 +1,37 @@
+---
+description: Non-negotiable product and engineering constraints for TheCountyPost Market.
+alwaysApply: true
+---
+
+# Project constitution
+
+You are working on **TheCountyPost Market**, a premium, moderated regional classifieds marketplace.
+
+## Product boundaries
+
+- Build one independently deployed marketplace application at `market.thecountypost.com`.
+- Use one shared database. State and county are listing attributes and browse scopes, not tenant boundaries or separate deployments.
+- Favor structured listings, verified sellers, pre-publication moderation, and trustworthy presentation over posting volume.
+- Treat `docs/00-PRODUCT-CHARTER.md`, accepted ADRs, and accepted feature specs as the source of truth.
+- Treat unresolved entries in `docs/14-OPEN-DECISIONS.md` as unresolved. Do not silently choose policy.
+- Phase 1A excludes messaging, ratings, SMS alerts, dealer subscriptions, bulk feeds, radius search, native apps, and OpenSearch unless an accepted ADR changes scope.
+
+## Architecture
+
+- Use a Django modular monolith with PostgreSQL.
+- Keep domain logic in models, domain services, selectors/query services, policies, and forms—not in templates, admin actions, signals, or fat views.
+- Prefer server-rendered Django templates and progressive enhancement. Do not add a SPA or frontend framework without an accepted ADR.
+- Use explicit application boundaries. Do not import private internals across apps to bypass a service or selector API.
+- Keep web requests stateless. Durable work belongs in PostgreSQL-backed records and a worker/scheduled command.
+
+## Change discipline
+
+Before editing for a non-trivial task:
+
+1. Read the relevant feature spec, roadmap milestone, ADRs, and nearby code.
+2. State the intended behavior, files, migration impact, security impact, and tests.
+3. Stop and surface any unresolved product decision that changes user-visible behavior, money, privacy, moderation, or data retention.
+4. Make the smallest coherent change. Do not mix dependency upgrades or unrelated refactors into feature work.
+5. Run the narrow tests first and the repository quality gate before declaring completion.
+
+Never claim a command passed unless it was actually run. Never fabricate brand values, AWS resource identifiers, secrets, policies, or stakeholder decisions.

@@ -1,0 +1,28 @@
+/* Neutral placeholders only. Replace primitives using verified brand evidence. */
+:root {
+  --brand-color-ink: #171717;
+  --brand-color-paper: #ffffff;
+  --brand-color-primary: #171717;
+  --brand-color-primary-contrast: #ffffff;
+  --brand-color-muted: #5f6368;
+  --brand-color-border: #d8dadd;
+  --brand-font-display: ui-serif, Georgia, serif;
+  --brand-font-body: ui-sans-serif, system-ui, sans-serif;
+
+  --color-text: var(--brand-color-ink);
+  --color-text-muted: var(--brand-color-muted);
+  --color-surface: var(--brand-color-paper);
+  --color-border: var(--brand-color-border);
+  --color-action: var(--brand-color-primary);
+  --color-on-action: var(--brand-color-primary-contrast);
+  --color-focus: #005fcc;
+  --font-heading: var(--brand-font-display);
+  --font-body: var(--brand-font-body);
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --container-content: 72rem;
+  --focus-ring: 0 0 0 0.1875rem var(--color-focus);
+}

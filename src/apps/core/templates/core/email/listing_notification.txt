@@ -1,0 +1,12 @@
+{{ listing_title }}
+
+{% if event_type == "listing.approved" %}Your listing has been approved and is now visible to shoppers.
+{% elif event_type == "listing.changes_requested" %}Please review the requested changes before resubmitting your listing.
+{% elif event_type == "listing.rejected" %}Your listing was not approved.
+{% elif event_type == "listing.sold" %}Your listing is marked as sold and is no longer public.
+{% elif event_type == "listing.expired" %}Your listing has expired and is no longer public.
+{% elif event_type == "listing.expiration_reminder" %}Your listing expires in {{ days_remaining }} day{{ days_remaining|pluralize }}.
+{% endif %}{% if seller_message %}
+
+{{ seller_message }}
+{% endif %}

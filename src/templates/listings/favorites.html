@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Saved listings | TheCountyPost Market{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>Saved listings</h1>
+  {% if listings %}
+    <ul class="listing-list">
+    {% for listing in listings %}
+      <li><a href="{% url 'locations:listing_detail' listing.state.slug listing.county.slug listing.id %}">{{ listing.title }}</a>
+        <form method="post" action="{% url 'listings:favorite_toggle' listing.id %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'listings:favorites' %}"><button type="submit">Remove</button></form>
+      </li>
+    {% endfor %}
+    </ul>
+  {% else %}<p>You have no saved public listings.</p>{% endif %}
+</section>
+{% endblock %}

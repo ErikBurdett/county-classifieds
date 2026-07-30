@@ -1,0 +1,15 @@
+---
+description: Describe the focused constraint and when it applies.
+globs:
+  - "path/or/glob/**/*.py"
+alwaysApply: false
+---
+
+# Rule title
+
+- Write short, testable instructions.
+- State required architecture/security behavior.
+- State prohibited shortcuts.
+- Reference a detailed repository document with `@docs/example.md` when useful rather than duplicating it.
+- Keep universal rules in one small always-applied constitution.
+- Do not include secrets, environment-specific identifiers, or temporary chat decisions.

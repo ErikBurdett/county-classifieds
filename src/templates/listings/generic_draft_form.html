@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Create listing | TheCountyPost Market{% endblock %}
+{% block content %}
+<section class="panel listing-form-panel" aria-labelledby="create-listing-title">
+  <p class="eyebrow">Seller dashboard</p>
+  <h1 id="create-listing-title">{% if editing %}Edit listing{% else %}Create listing{% endif %}</h1>
+  <p class="help-text">{% if unified_create %}Choose a vertical, then a postable leaf category. Category groups are not available for posting; leaf labels include hierarchy context.{% else %}Choose any active postable leaf category. Your street address stays private. Public location is city, county, and state only; you may provide an address on request.{% endif %}</p>
+  {% if form.errors %}
+    <div class="message message--error" role="alert" aria-labelledby="form-errors-title">
+      <p id="form-errors-title">Correct the errors below.</p>
+      {{ form.non_field_errors }}
+      <ul>
+        {% for field in form.visible_fields %}{% for error in field.errors %}<li><a href="#{{ field.id_for_label }}">{{ field.label }}: {{ error }}</a></li>{% endfor %}{% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+  <form class="generic-listing-form" method="post" novalidate data-generic-listing-form data-category-url="{% url 'listings:generic_categories' %}" data-county-url="{% url 'listings:generic_county_candidates' %}" data-state-url="{% url 'listings:state_candidates' %}"{% if unified_create %} action="{% url 'listings:create_listing' %}" data-unified-create="true"{% endif %}>
+    {% csrf_token %}
+    {{ form.currency }}
+    <fieldset>
+      <legend>Listing basics</legend>
+      <div class="generic-form-grid">
+        {% include "listings/_generic_form_field.html" with field=form.vertical %}
+        {% include "listings/_generic_form_field.html" with field=form.category category_field=True %}
+        {% include "listings/_generic_form_field.html" with field=form.title full_width=True %}
+        {% include "listings/_generic_form_field.html" with field=form.description full_width=True %}
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Location</legend>
+      <p class="help-text">Select an active county for the state, then enter a ZIP to verify it against the loaded offline HUD ZIP–county reference data. A ZIP may map to more than one county.</p>
+      <div class="generic-form-grid">
+        <div class="form-field" data-state-search>
+          {{ form.state.label_tag }}<span aria-hidden="true"> *</span>
+          <div data-state-fallback>{{ form.state }}</div>
+          <div class="county-search__enhancement" data-state-enhancement hidden>
+            <label class="county-search__label" for="id_state_search">Search state or territory</label>
+            <input id="id_state_search" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="state-search-results" autocomplete="off" data-state-input>
+            <ul class="county-search__results" id="state-search-results" role="listbox" aria-label="Matching states and territories" hidden data-state-results></ul>
+          </div>
+          {% for error in form.state.errors %}<p class="field-error" id="{{ form.state.id_for_label }}_error" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+        {% include "listings/_generic_form_field.html" with field=form.city %}
+        {% include "listings/_generic_form_field.html" with field=form.postal_code %}
+        <div class="form-field" data-county-search>
+          {{ form.county.label_tag }}<span aria-hidden="true"> *</span>
+          <div class="county-search__fallback" data-county-fallback>
+            {{ form.county }}
+          </div>
+          <div class="county-search__enhancement" data-county-enhancement hidden>
+            <label class="county-search__label" for="id_county_search">Search primary county</label>
+            <input
+              id="id_county_search"
+              type="text"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded="false"
+              aria-controls="county-search-results"
+              aria-describedby="county-search-instructions{% if form.county.errors %} id_county_error{% endif %}"
+              autocomplete="off"
+              placeholder="Choose a state first"
+              disabled
+              data-county-input
+            >
+            <p class="help-text" id="county-search-instructions">Choose a state, then type a county name and select a result. Your selection is checked against the ZIP when you save.</p>
+            <ul class="county-search__results" id="county-search-results" role="listbox" aria-label="Matching counties" hidden data-county-results></ul>
+          </div>
+          {% for error in form.county.errors %}<p class="field-error" id="id_county_error" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-field generic-form-grid__full" data-additional-county-search>
+          {{ form.additional_counties.label_tag }}
+          <div class="county-search__fallback" data-additional-county-fallback>
+            {{ form.additional_counties }}
+          </div>
+          <div class="county-search__enhancement" data-additional-county-enhancement hidden>
+            <label class="county-search__label" for="id_additional_county_search">Search nearby counties</label>
+            <input
+              id="id_additional_county_search"
+              type="text"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded="false"
+              aria-controls="additional-county-search-results"
+              aria-describedby="additional-county-search-instructions{% if form.additional_counties.errors %} id_additional_counties_error{% endif %}"
+              autocomplete="off"
+              placeholder="Choose a state first"
+              disabled
+              data-additional-county-input
+            >
+            <p class="help-text" id="additional-county-search-instructions">Type a county name, then select a result to add it. Your primary county cannot also be added.</p>
+            <ul class="county-tags" aria-label="Selected nearby counties" data-additional-county-tags></ul>
+            <ul class="county-search__results" id="additional-county-search-results" role="listbox" aria-label="Matching nearby counties" hidden data-additional-county-results></ul>
+          </div>
+          {% if form.additional_counties.help_text %}<p class="help-text" id="{{ form.additional_counties.id_for_label }}_helptext">{{ form.additional_counties.help_text }}</p>{% endif %}
+          {% for error in form.additional_counties.errors %}<p class="field-error" id="id_additional_counties_error" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+      </div>
+      <p class="help-text" data-county-status role="status" aria-live="polite">Choose a state to see its active counties. Enter a five-digit ZIP to verify your choices before saving.</p>
+      <noscript><p class="help-text">After selecting a state, submit the form if needed to reload its active counties. Server-side ZIP and county verification remains required.</p></noscript>
+    </fieldset>
+    <fieldset>
+      <legend>Price</legend>
+      <div class="generic-form-grid">
+        {% include "listings/_generic_form_field.html" with field=form.price_mode %}
+        {% include "listings/_generic_form_field.html" with field=form.asking_price %}
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Private address</legend>
+      <div class="generic-form-grid">
+        {% include "listings/_generic_form_field.html" with field=form.street_address full_width=True %}
+      </div>
+    </fieldset>
+    <p class="help-text" data-placement-quote>Local demo quote: $10 primary placement + $5 × 0 nearby counties = $10. This is a local-demo display, not a payment claim or production checkout; the server quote and snapshot remain authoritative.</p>
+    {% if unified_create %}
+      <button type="submit" name="show_fields" value="1">Show fields</button>
+    {% else %}
+      <button type="submit">Save listing draft</button>
+    {% endif %}
+  </form>
+</section>
+<script src="{% static 'js/generic-listing.js' %}" defer></script>
+{% endblock %}

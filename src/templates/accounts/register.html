@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Create account | TheCountyPost Market{% endblock %}
+
+{% block content %}
+  <section class="panel" aria-labelledby="register-title">
+    <p class="eyebrow">Seller access</p>
+    <h1 id="register-title">Create your account</h1>
+    {% if form.errors %}
+      <div class="error-summary" role="alert">Please correct the fields below.</div>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="form-field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<p class="help-text">{{ field.help_text }}</p>{% endif %}
+          {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+      {% endfor %}
+      <button type="submit">Create account</button>
+    </form>
+  </section>
+{% endblock %}

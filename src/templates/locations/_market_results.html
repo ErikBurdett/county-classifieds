@@ -1,0 +1,29 @@
+<div id="market-finder-results" class="market-finder-results" role="region" aria-live="polite" aria-label="Market search results">
+  {% if market_search_performed %}
+    <section class="market-search-results" aria-labelledby="market-results-title">
+      <h2 id="market-results-title">Matching markets</h2>
+      <div class="market-search-columns">
+        <div>
+          <h3>States</h3>
+          <ul>
+            {% for state in market_states %}
+              <li><a href="{% url 'locations:state_context' state.slug %}">{{ state.name }}</a></li>
+            {% empty %}
+              <li>No active states matched.</li>
+            {% endfor %}
+          </ul>
+        </div>
+        <div>
+          <h3>Counties</h3>
+          <ul>
+            {% for county in market_counties %}
+              <li><a href="{% url 'locations:county_context' county.state.slug county.slug %}">{{ county.name }}, {{ county.state.usps_code }}</a></li>
+            {% empty %}
+              <li>No active counties matched.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+</div>

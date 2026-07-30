@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Find a market | TheCountyPost Market{% endblock %}
+{% block robots_meta %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+  <section class="location-finder-page" aria-labelledby="location-finder-page-title">
+    <p class="eyebrow">Marketplace navigation</p>
+    <h1 id="location-finder-page-title">Search the market directory</h1>
+    <p>Every active Census state and county has a directory page, including markets without current listings.</p>
+    {% include "locations/_market_finder.html" %}
+    {% include "locations/_market_results.html" %}
+  </section>
+{% endblock %}

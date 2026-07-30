@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Staff sign in | TheCountyPost Market{% endblock %}
+
+{% block content %}
+  <section class="panel management-login" aria-labelledby="staff-login-title">
+    <p class="eyebrow">Management console</p>
+    <h1 id="staff-login-title">Staff sign in</h1>
+    <p>Use a staff account to access operational tools.</p>
+    {% if form.errors %}
+      <div class="error-summary" role="alert">Please enter a correct email and password.</div>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-field">
+        <label for="{{ form.username.id_for_label }}">Email</label>
+        {{ form.username }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.password.id_for_label }}">Password</label>
+        {{ form.password }}
+      </div>
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit">Sign in to manage</button>
+    </form>
+  </section>
+{% endblock %}

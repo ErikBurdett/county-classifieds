@@ -1,0 +1,24 @@
+---
+description: Stripe listing-fee and featured-upgrade payment invariants.
+globs:
+  - "src/apps/billing/**/*.py"
+  - "src/apps/listings/**/*payment*.py"
+  - "templates/billing/**/*.html"
+  - "tests/**/*billing*.py"
+alwaysApply: false
+---
+
+# Stripe payment rules
+
+- This project charges listing fees and upgrades. It does not process buyer-to-seller transactions and does not use Stripe Connect in MVP.
+- Calculate price and eligibility server-side from versioned internal price definitions. Never trust amounts, product IDs, listing IDs, or entitlements supplied by the browser.
+- Create a local Order before creating Stripe Checkout and attach only opaque correlation metadata.
+- Browser success/cancel redirects are presentation only. They never establish payment state or activate a listing.
+- Only verified Stripe webhooks may establish durable payment truth.
+- Verify signatures against the raw request body and the correct environment secret.
+- Persist every event ID uniquely before processing. Handlers must be idempotent, replayable, and safe for duplicate/out-of-order delivery.
+- Lock or conditionally update rows when applying money/state changes.
+- Validate currency, expected amount, order state, account/mode, and referenced objects before granting an entitlement.
+- A paid listing transitions to moderation through the listing transition service after the required entitlement is durable.
+- Never log full webhook payloads, payment method details, customer personal data, secrets, or success URLs containing session IDs.
+- Test live/test isolation, duplicate events, event replay, mismatch handling, delayed events, failed checkout, refunds, and reconciliation.

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Seller profile | TheCountyPost Market{% endblock %}
+
+{% block content %}
+  <section class="panel" aria-labelledby="profile-title">
+    <p class="eyebrow">Seller setup</p>
+    <h1 id="profile-title">Your seller profile</h1>
+    <p>Set the name displayed with your future listings. Phone verification is not part of this draft-only workflow.</p>
+    {% if form.errors %}
+      <div class="error-summary" role="alert">Please correct the fields below.</div>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="form-field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<p class="help-text">{{ field.help_text }}</p>{% endif %}
+          {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        </div>
+      {% endfor %}
+      <button type="submit">Save seller profile</button>
+    </form>
+  </section>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}{{ listing.title }} draft | TheCountyPost Market{% endblock %}
+
+{% block content %}
+  <article class="panel" aria-labelledby="draft-title">
+    <p class="eyebrow">Private listing · {{ listing.get_status_display }}</p>
+    <h1 id="draft-title">{{ listing.title }}</h1>
+    <p>{{ listing.city }}, {{ listing.county.name }}, {{ listing.state.usps_code }}</p>
+    <dl class="listing-details">
+      <div><dt>Category</dt><dd>{{ listing.category.name }}</dd></div>
+      <div><dt>Price</dt><dd>{{ listing.price_minor }} {{ listing.currency }}</dd></div>
+      <div><dt>Vehicle</dt><dd>{{ listing.auto_details.year }} {{ listing.auto_details.make }} {{ listing.auto_details.model }}{% if listing.auto_details.trim %} {{ listing.auto_details.trim }}{% endif %}</dd></div>
+      <div><dt>Mileage</dt><dd>{{ listing.auto_details.mileage }}</dd></div>
+      <div><dt>Title status</dt><dd>{{ listing.auto_details.get_title_status_display }}</dd></div>
+    </dl>
+    <h2>Description</h2>
+    <p>{{ listing.description|linebreaksbr }}</p>
+    {% if listing.status == "draft" or listing.status == "changes_requested" %}
+      <p><a class="button-link" href="{% url 'listings:edit_listing' listing.id %}">Edit draft</a></p>
+    {% endif %}
+    {% include "listings/_submission_panel.html" %}
+    {% with action=listing.moderation_actions.first %}
+      {% if action.reason_code %}
+        <p>{{ action.reason_code.seller_facing_text }}{% if action.seller_facing_note %} {{ action.seller_facing_note }}{% endif %}</p>
+      {% endif %}
+    {% endwith %}
+  </article>
+  {% include "listings/_media_panel.html" %}
+{% endblock %}

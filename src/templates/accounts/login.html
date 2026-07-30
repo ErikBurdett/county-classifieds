@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Sign in | TheCountyPost Market{% endblock %}
+
+{% block content %}
+  <section class="panel" aria-labelledby="login-title">
+    <p class="eyebrow">Seller access</p>
+    <h1 id="login-title">Sign in</h1>
+    {% if form.errors %}
+      <div class="error-summary" role="alert">Your email or password was not accepted.</div>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-field">
+        <label for="{{ form.username.id_for_label }}">Email</label>
+        {{ form.username }}
+      </div>
+      <div class="form-field">
+        <label for="{{ form.password.id_for_label }}">Password</label>
+        {{ form.password }}
+      </div>
+      <button type="submit">Sign in</button>
+      <input type="hidden" name="next" value="{{ next }}">
+    </form>
+    <p><a href="{% url 'accounts:password_reset' %}">Forgot your password?</a></p>
+  </section>
+{% endblock %}

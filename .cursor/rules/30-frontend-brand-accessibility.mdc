@@ -1,0 +1,27 @@
+---
+description: Server-rendered UI, brand parity, responsive design, and accessibility standards.
+globs:
+  - "templates/**/*.html"
+  - "src/**/templates/**/*.html"
+  - "static/**/*.css"
+  - "static/**/*.js"
+  - "src/**/static/**/*"
+  - "brand/**/*"
+alwaysApply: false
+---
+
+# Frontend, brand, and accessibility
+
+- Use server-rendered Django templates, semantic HTML, and progressive enhancement.
+- Do not introduce React, Vue, a SPA router, or a component framework without an accepted ADR.
+- Exact TheCountyPost colors, fonts, logo rules, spacing, and effects must come from verified evidence recorded in `brand/brand-reference-manifest.json`. Never guess them.
+- Consume semantic design tokens. Do not scatter raw brand colors, font families, shadows, radii, or spacing values across components.
+- Reuse documented template components/includes with explicit context contracts.
+- Escape user content by default. Never use `safe`, `mark_safe`, or raw HTML from users without an approved sanitization boundary and tests.
+- Forms need visible labels, required-state communication, field errors, an error summary for multi-step flows, keyboard operation, and preserved entered values after validation failure.
+- All interactive controls need visible focus, sufficient target size, and accessible names.
+- Do not use color alone to communicate listing, moderation, payment, or validation state.
+- Respect reduced motion. Provide useful alt text or empty alt text for decorative images.
+- Preserve canonical URL and query-string state in filters, pagination, scope toggle, and sorting.
+- Validate public and staff workflows against WCAG 2.2 AA after real brand tokens are supplied.
+- Mobile behavior is a first-class acceptance criterion; upload, filtering, and listing creation must not depend on drag-only or hover-only interaction.

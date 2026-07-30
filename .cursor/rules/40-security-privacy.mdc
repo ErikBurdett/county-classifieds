@@ -1,0 +1,28 @@
+---
+description: Security, privacy, authorization, uploads, and abuse-prevention constraints.
+globs:
+  - "src/apps/accounts/**/*.py"
+  - "src/apps/listings/**/*.py"
+  - "src/apps/media/**/*.py"
+  - "src/apps/moderation/**/*.py"
+  - "src/apps/billing/**/*.py"
+  - "src/apps/notifications/**/*.py"
+  - "config/settings/**/*.py"
+  - "templates/**/*.html"
+alwaysApply: false
+---
+
+# Security and privacy rules
+
+- Apply least privilege in Django permissions, AWS IAM, database access, admin access, and presigned upload grants.
+- Every object mutation performs an explicit object-level ownership or staff-role check.
+- Use CSRF protection for browser mutations. Do not exempt endpoints unless the protocol requires it and compensating verification exists.
+- Rate-limit and audit authentication, phone verification, listing submission, search abuse, report submission, and payment-session creation.
+- Treat all user text, filenames, image metadata, query strings, webhook data, and third-party callbacks as untrusted.
+- Direct uploads go to a private S3 staging prefix using short-lived, content-constrained grants. Validate magic bytes, actual dimensions, decoded size, count, ownership, and state before publishing.
+- Re-encode accepted images, strip metadata including EXIF/GPS, generate controlled variants, and never serve staging objects publicly.
+- Secrets come from environment/Secrets Manager. Never commit them, print them, place them in screenshots, or include them in agent prompts.
+- Keep personal and sensitive data out of URLs, analytics labels, metrics dimensions, exception messages, and ordinary logs.
+- Use generic public errors and detailed safe internal audit records.
+- Security-sensitive changes require abuse cases and negative tests, not only happy paths.
+- Record retention and deletion behavior must follow an accepted policy; do not invent one in code.

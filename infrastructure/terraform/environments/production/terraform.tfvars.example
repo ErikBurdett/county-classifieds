@@ -1,0 +1,49 @@
+# Copy to an ignored terraform.tfvars only after values are approved.
+# Do not replace placeholders with account IDs, secret ARNs, domains, or credentials here.
+
+aws_region  = "<AWS_REGION>"
+environment = "production"
+name_prefix = "county-post-marketplace-production"
+media_bucket_name = "<GLOBALLY_UNIQUE_PRIVATE_MEDIA_BUCKET_NAME>"
+
+# ECR digest promoted from a verified build; tags are not accepted for release promotion.
+image_digest = "<ECR_REPOSITORY_URL>@sha256:<IMAGE_DIGEST>"
+
+# Choose one networking approach:
+# 1. Dedicated VPC:
+vpc_id             = null
+availability_zones = ["<AWS_REGION>a", "<AWS_REGION>b"]
+
+# 2. Existing VPC (uncomment and replace all values):
+# vpc_id             = "<EXISTING_VPC_ID>"
+# private_subnet_ids = ["<PRIVATE_SUBNET_ID_1>", "<PRIVATE_SUBNET_ID_2>"]
+# public_subnet_ids  = ["<PUBLIC_SUBNET_ID_1>", "<PUBLIC_SUBNET_ID_2>"]
+
+# Existing, DNS-validated regional ACM certificate for the public ALB.
+web_acm_certificate_arn = "<REGIONAL_ACM_CERTIFICATE_ARN>"
+
+database_backup_retention_days = 7
+database_deletion_protection   = true
+
+# References only. Values must be secrets that ECS can read.
+task_secret_arns = {
+  DJANGO_SECRET_KEY     = "<SECRETS_MANAGER_SECRET_ARN>"
+  DATABASE_URL          = "<SECRETS_MANAGER_SECRET_ARN>"
+  EMAIL_HOST_USER       = "<SECRETS_MANAGER_SECRET_ARN>"
+  EMAIL_HOST_PASSWORD   = "<SECRETS_MANAGER_SECRET_ARN>"
+}
+
+# Non-secret process configuration. SES identity/domain setup remains external.
+task_environment = {
+  DJANGO_ALLOWED_HOSTS         = "<APPROVED_HOSTNAME>"
+  DJANGO_CSRF_TRUSTED_ORIGINS  = "https://<APPROVED_HOSTNAME>"
+  AWS_REGION                   = "<AWS_REGION>"
+  AWS_STORAGE_BUCKET_NAME      = "<GLOBALLY_UNIQUE_PRIVATE_MEDIA_BUCKET_NAME>"
+  EMAIL_HOST                   = "<SES_SMTP_ENDPOINT>"
+  SES_FROM_EMAIL               = "<VERIFIED_SES_SENDER>"
+}
+
+# Optional existing alarm topic and CloudFront distribution configuration.
+alarm_sns_topic_arn = null
+enable_cloudfront   = false
+cloudfront_aliases  = []

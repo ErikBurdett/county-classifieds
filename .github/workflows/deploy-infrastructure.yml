@@ -1,0 +1,87 @@
+name: Manual infrastructure deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Protected GitHub Environment (staging or production)"
+        required: true
+        type: choice
+        options: [staging, production]
+      aws_region:
+        description: "AWS region; must match the protected environment configuration"
+        required: true
+        type: string
+      aws_role_arn:
+        description: "Pre-approved GitHub OIDC deployment role ARN"
+        required: true
+        type: string
+      image_digest:
+        description: "Immutable ECR image reference: repository@sha256:..."
+        required: true
+        type: string
+      apply:
+        description: "Apply reviewed Terraform plan"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: ${{ inputs.environment }} infrastructure
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_VAR_aws_region: ${{ inputs.aws_region }}
+      TF_VAR_environment: ${{ inputs.environment }}
+      TF_VAR_image_digest: ${{ inputs.image_digest }}
+      # Configure these protected-environment variables before first use.
+      TF_BACKEND_BUCKET: ${{ vars.TF_BACKEND_BUCKET }}
+      TF_BACKEND_DYNAMODB_TABLE: ${{ vars.TF_BACKEND_DYNAMODB_TABLE }}
+      TF_VAR_name_prefix: ${{ vars.TF_VAR_NAME_PREFIX }}
+      TF_VAR_media_bucket_name: ${{ vars.TF_VAR_MEDIA_BUCKET_NAME }}
+      TF_VAR_vpc_id: ${{ vars.TF_VAR_VPC_ID }}
+      TF_VAR_private_subnet_ids: ${{ vars.TF_VAR_PRIVATE_SUBNET_IDS }}
+      TF_VAR_public_subnet_ids: ${{ vars.TF_VAR_PUBLIC_SUBNET_IDS }}
+      TF_VAR_availability_zones: ${{ vars.TF_VAR_AVAILABILITY_ZONES }}
+      TF_VAR_web_acm_certificate_arn: ${{ vars.TF_VAR_WEB_ACM_CERTIFICATE_ARN }}
+      TF_VAR_task_secret_arns: ${{ vars.TF_VAR_TASK_SECRET_ARNS }}
+      TF_VAR_task_environment: ${{ vars.TF_VAR_TASK_ENVIRONMENT }}
+      TF_VAR_alarm_sns_topic_arn: ${{ vars.TF_VAR_ALARM_SNS_TOPIC_ARN }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_wrapper: false
+      - uses: aws-actions/configure-aws-credentials@00943011d9042930efac3dcd3a170e4273319bc8 # v5.1.0
+        with:
+          role-to-assume: ${{ inputs.aws_role_arn }}
+          aws-region: ${{ inputs.aws_region }}
+      - name: Validate input and protected configuration
+        run: |
+          test -n "$TF_BACKEND_BUCKET"
+          test -n "$TF_BACKEND_DYNAMODB_TABLE"
+          test -n "$TF_VAR_name_prefix"
+          test -n "$TF_VAR_media_bucket_name"
+          test -n "$TF_VAR_task_secret_arns"
+          test -n "$TF_VAR_task_environment"
+          case "$TF_VAR_image_digest" in *@sha256:*) ;; *) echo "image_digest must be immutable"; exit 1;; esac
+      - name: Initialize remote state
+        run: >-
+          terraform -chdir=infrastructure/terraform init -input=false
+          -backend-config="bucket=$TF_BACKEND_BUCKET"
+          -backend-config="key=marketplace/${{ inputs.environment }}/terraform.tfstate"
+          -backend-config="region=${{ inputs.aws_region }}"
+          -backend-config="dynamodb_table=$TF_BACKEND_DYNAMODB_TABLE"
+          -backend-config="encrypt=true"
+      - name: Plan
+        run: terraform -chdir=infrastructure/terraform plan -input=false -out=tfplan
+      - name: Apply approved plan
+        if: ${{ inputs.apply }}
+        run: terraform -chdir=infrastructure/terraform apply -input=false tfplan

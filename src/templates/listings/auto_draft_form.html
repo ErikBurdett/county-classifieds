@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}{{ heading }} | TheCountyPost Market{% endblock %}
+
+{% block content %}
+  <section class="panel" aria-labelledby="draft-title">
+    <p class="eyebrow">Private automobile draft</p>
+    <h1 id="draft-title">{{ heading }}</h1>
+    <p>Drafts are private. Save this form, add any required images, and submit the completed listing for moderation. Submission does not publish it.</p>
+    {% if listing_form.errors or auto_form.errors %}
+      <div class="error-summary" role="alert">Please correct the fields below.</div>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <fieldset>
+        <legend>Listing details</legend>
+        {% for field in listing_form %}
+          <div class="form-field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<p class="help-text">{{ field.help_text }}</p>{% endif %}
+            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+          </div>
+        {% endfor %}
+      </fieldset>
+      <fieldset>
+        <legend>Vehicle details</legend>
+        {% for field in auto_form %}
+          <div class="form-field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<p class="help-text">{{ field.help_text }}</p>{% endif %}
+            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+          </div>
+        {% endfor %}
+      </fieldset>
+      <button type="submit">Save draft</button>
+    </form>
+  </section>
+{% endblock %}

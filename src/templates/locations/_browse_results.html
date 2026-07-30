@@ -1,0 +1,13 @@
+<div id="listing-results" class="listing-results" role="region" aria-live="polite" aria-label="Listing search results">
+  <p class="result-summary">
+    {{ page_obj.paginator.count }} public listing{{ page_obj.paginator.count|pluralize }} in {% if county %}{{ county.name }}, {% endif %}{{ state.name }}{% if browse_form.errors %}; filters need correction, so showing all available listings{% elif request.GET %}; filtered or sorted results{% else %}; all available listings{% endif %}.
+  </p>
+  {% include "locations/_listing_cards.html" with listing_cards=listing_cards %}
+  {% if page_obj.has_other_pages %}
+  <nav class="pagination" aria-label="Listing pages">
+    {% if page_obj.has_previous %}<a rel="prev" href="?{{ pagination_query }}{% if pagination_query %}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Previous page</a>{% endif %}
+    <span aria-current="page">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a rel="next" href="?{{ pagination_query }}{% if pagination_query %}&amp;{% endif %}page={{ page_obj.next_page_number }}">Next page</a>{% endif %}
+  </nav>
+  {% endif %}
+</div>

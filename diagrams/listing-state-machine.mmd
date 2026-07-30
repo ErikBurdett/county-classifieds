@@ -1,0 +1,20 @@
+stateDiagram-v2
+    [*] --> draft
+    draft --> awaiting_payment: paid submit
+    draft --> pending_moderation: free submit
+    awaiting_payment --> pending_moderation: verified payment
+    awaiting_payment --> payment_failed: failed/cancelled
+    payment_failed --> awaiting_payment: retry
+    pending_moderation --> active: approve
+    pending_moderation --> changes_requested: request changes
+    pending_moderation --> rejected: reject
+    changes_requested --> pending_moderation: resubmit
+    active --> sold: seller marks sold
+    active --> expired: system expiration
+    active --> suspended: staff suspend
+    suspended --> active: staff restore
+    suspended --> archived: close
+    sold --> archived
+    expired --> awaiting_payment: paid renewal
+    expired --> pending_moderation: free/material resubmit
+    rejected --> archived

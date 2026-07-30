@@ -1,0 +1,70 @@
+/*
+ * EXAMPLE CONTRACT ONLY — values below are neutral placeholders, not
+ * approved TheCountyPost brand values. Replace primitives from verified
+ * first-party evidence and keep components bound to semantic tokens.
+ */
+
+:root {
+  /* Brand primitives — populate after evidence capture. */
+  --brand-color-ink: CanvasText;
+  --brand-color-paper: Canvas;
+  --brand-color-primary: currentColor;
+  --brand-color-primary-contrast: Canvas;
+  --brand-color-accent: currentColor;
+  --brand-color-muted: GrayText;
+  --brand-color-border: currentColor;
+
+  --brand-font-display: ui-serif, Georgia, serif;
+  --brand-font-body: ui-sans-serif, system-ui, sans-serif;
+
+  /* Semantic colors. */
+  --color-text: var(--brand-color-ink);
+  --color-text-muted: var(--brand-color-muted);
+  --color-surface: var(--brand-color-paper);
+  --color-surface-raised: var(--brand-color-paper);
+  --color-border: var(--brand-color-border);
+  --color-action: var(--brand-color-primary);
+  --color-on-action: var(--brand-color-primary-contrast);
+  --color-accent: var(--brand-color-accent);
+  --color-focus: Highlight;
+  --color-success: currentColor;
+  --color-warning: currentColor;
+  --color-danger: currentColor;
+
+  /* Typography. Replace scale/rhythm after capture. */
+  --font-heading: var(--brand-font-display);
+  --font-body: var(--brand-font-body);
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 2rem;
+  --line-height-tight: 1.2;
+  --line-height-body: 1.5;
+
+  /* Spacing and shape. Replace after capture. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --shadow-raised: none;
+  --border-width: 1px;
+  --container-content: 70rem;
+  --container-reading: 45rem;
+  --focus-ring: 0 0 0 0.1875rem var(--color-focus);
+  --motion-fast: 120ms;
+  --motion-standard: 200ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-standard: 0ms;
+  }
+}

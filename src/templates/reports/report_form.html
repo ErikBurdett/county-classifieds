@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Report listing | TheCountyPost Market{% endblock %}
+{% block content %}
+<section class="panel" aria-labelledby="report-listing-title">
+  <h1 id="report-listing-title">Report this listing</h1>
+  <p>Reports are reviewed by marketplace staff. The seller will not see who submitted this report.</p>
+  <form method="post">
+    {% csrf_token %}
+    {% if form.errors %}
+      <div class="error-summary" role="alert" aria-labelledby="report-errors-title" tabindex="-1">
+        <p id="report-errors-title">Please correct the highlighted fields.</p>
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+    {% for field in form %}
+      <p>
+        <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} (required){% endif %}</label>
+        {{ field }}
+        {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+        {% for error in field.errors %}<span role="alert">{{ error }}</span>{% endfor %}
+      </p>
+    {% endfor %}
+    <button type="submit">Submit report</button>
+  </form>
+</section>
+{% endblock %}

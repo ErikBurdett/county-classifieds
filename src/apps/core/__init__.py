@@ -1,0 +1,1 @@
+"""Shared marketplace application services."""

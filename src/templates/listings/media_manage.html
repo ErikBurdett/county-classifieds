@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block title %}Manage images | {{ listing.title }} | TheCountyPost Market{% endblock %}
+
+{% block content %}
+  <article>
+    <p><a href="{% url 'listings:dashboard' %}">Back to drafts</a></p>
+    {% include "listings/_media_panel.html" %}
+  </article>
+{% endblock %}

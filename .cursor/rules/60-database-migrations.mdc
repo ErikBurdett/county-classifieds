@@ -1,0 +1,22 @@
+---
+description: Safe Django migration practices for PostgreSQL.
+globs:
+  - "**/migrations/*.py"
+  - "src/apps/**/models.py"
+  - "src/apps/**/models/**/*.py"
+alwaysApply: false
+---
+
+# Database migration safety
+
+- Never hand-edit an already deployed migration. Add a new migration.
+- Review generated operations and PostgreSQL SQL before applying or committing.
+- Separate schema introduction, data backfill, behavior switch, constraint validation, and destructive cleanup when deployment compatibility requires it.
+- New required columns on populated tables normally use: nullable/additive schema -> batched backfill -> application switch -> constraint/default cleanup.
+- Avoid table rewrites, long blocking locks, and unbounded data migrations.
+- Make data migrations forwards-safe, resumable or idempotent where practical, and explicit about reverse behavior.
+- Do not import current model classes in data migrations; use historical models from `apps.get_model`.
+- Add indexes deliberately and assess write/read tradeoffs. Use concurrent PostgreSQL index operations when production size and deployment mechanics require them.
+- New uniqueness and check constraints need handling for existing data and race-condition tests.
+- Destructive operations require an accepted ADR/feature spec, verified backup/recovery posture, and a rollback or forward-fix plan.
+- `makemigrations --check --dry-run` and migration tests must pass in CI.

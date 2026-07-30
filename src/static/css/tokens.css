@@ -1,0 +1,53 @@
+/* Values verified against the local The County Post implementation. */
+@import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Playfair+Display:wght@500;700;900&family=Roboto+Mono:wght@400;600&display=swap");
+
+:root {
+  --brand-color-ink: #101010;
+  --brand-color-paper: #e7e6e1;
+  --brand-color-surface: #f4f3ef;
+  --brand-color-primary: #123c73;
+  --brand-color-primary-dark: #08264e;
+  --brand-color-accent: #a8191d;
+  --brand-color-accent-dark: #7e1115;
+  --brand-color-border: #181818;
+  --brand-color-muted: #565656;
+  --brand-color-white: #fff;
+  --brand-color-background-start: #d5d4d0;
+  --brand-color-background-middle: #eeeeeb;
+  --brand-color-background-end: #c6c5c0;
+  --brand-color-primary-light: #174f93;
+  --brand-color-card-start: #fbfbfa;
+  --brand-color-card-end: #ebebe8;
+  --brand-shadow-page: 0 10px 0 rgb(0 0 0 / 82%);
+  --brand-shadow-card-inset: 0 1px 0 rgb(255 255 255 / 80%) inset;
+  --brand-font-display: "Playfair Display", "Libre Baskerville", Georgia, serif;
+  --brand-font-body: "Libre Baskerville", Georgia, "Times New Roman", serif;
+  --brand-font-mono: "Roboto Mono", monospace;
+
+  --color-text: var(--brand-color-ink);
+  --color-text-muted: var(--brand-color-muted);
+  --color-surface: var(--brand-color-surface);
+  --color-action: var(--brand-color-primary);
+  --color-on-action: var(--brand-color-white);
+  --color-border: var(--brand-color-border);
+  --color-focus: var(--brand-color-accent);
+  --font-heading: var(--brand-font-display);
+  --font-body: var(--brand-font-body);
+  --font-mono: var(--brand-font-mono);
+  --color-surface-raised: var(--brand-color-card-start);
+  --color-surface-muted: var(--brand-color-card-end);
+  --color-action-dark: var(--brand-color-primary-dark);
+  --color-accent: var(--brand-color-accent);
+  --color-accent-dark: var(--brand-color-accent-dark);
+  --color-error: var(--brand-color-accent-dark);
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --container-content: 120rem;
+  --focus-ring: 0 0 0 0.1875rem var(--color-focus);
+  --shadow-card: 0 0.5rem 1.25rem rgb(0 0 0 / 14%);
+}

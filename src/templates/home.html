@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="market-hero" aria-labelledby="market-title">
+    <p class="eyebrow">TheCountyPost Market</p>
+    <h1 id="market-title">A better way to find regional listings</h1>
+    <p class="market-hero-lead">Explore public Autos, homes, rentals, farm and ranch equipment, livestock, and home goods by state or county across the CountyPost marketplace network.</p>
+    <a class="hero-action" href="#market-finder-title">Find your market</a>
+  </section>
+
+  {% include "locations/_market_finder.html" %}
+  {% include "locations/_market_results.html" %}
+
+  <section class="market-section" aria-labelledby="latest-listings-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Fresh inventory</p>
+        <h2 id="latest-listings-title">Latest listings</h2>
+      </div>
+      <p>Public, active listings from enabled CountyPost markets.</p>
+    </div>
+    {% include "locations/_listing_cards.html" with listings=listings %}
+  </section>
+
+  <details class="market-directory">
+    <summary>
+      <span>
+        <span class="eyebrow">Browse by state</span>
+        <strong>All active state markets</strong>
+      </span>
+      <span class="market-directory-count">{{ states|length }} state market{{ states|length|pluralize }}</span>
+    </summary>
+    <div class="market-directory-content">
+      <p>Every active state market is available, including markets with no current listings.</p>
+      <div class="market-grid market-grid--directory" aria-label="Active state markets">
+        {% for state in states %}
+          <a class="market-tile" href="{% url 'locations:state_context' state.slug %}">
+            <span class="market-tile-label">Browse state</span>
+            <strong>{{ state.name }}</strong>
+            <span class="market-tile-action">View market <span aria-hidden="true">→</span></span>
+          </a>
+        {% empty %}
+          <p class="empty-state">Markets will appear when locations are enabled for the marketplace.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </details>
+{% endblock %}

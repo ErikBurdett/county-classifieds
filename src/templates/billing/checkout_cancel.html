@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout cancelled | TheCountyPost Market{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <p class="eyebrow">Local demo checkout</p>
+    <h1>Checkout cancelled</h1>
+    <p>Order {{ order.id }} remains {{ order.get_status_display|lower }}.</p>
+    <p>No payment or listing status was changed.</p>
+    <p><a href="{% url 'listings:dashboard' %}">Return to your dashboard</a></p>
+  </section>
+{% endblock %}

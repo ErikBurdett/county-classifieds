@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Billing reconciliation | TheCountyPost Market{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <p class="eyebrow">Staff only</p>
+    <h1>Local billing reconciliation</h1>
+    <p>Local demo data only. Refund requests require manual review under DEC-004.</p>
+    <table>
+      <thead><tr><th>Order</th><th>Listing</th><th>Total</th><th>Status</th><th>Events</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for order in orders %}
+          <tr>
+            <td>{{ order.id }}</td><td>{{ order.listing }}</td>
+            <td>{{ order.total_minor }} {{ order.currency }}</td><td>{{ order.get_status_display }}</td>
+            <td>{{ order.payment_events.count }}</td>
+            <td>
+              {% if debug and order.status == "pending" %}
+                <form method="post" action="{% url 'billing:local_confirm' order.id %}">{% csrf_token %}<button type="submit">Confirm local demo payment</button></form>
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+        {% empty %}<tr><td colspan="6">No orders.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

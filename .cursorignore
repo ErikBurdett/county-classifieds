@@ -1,0 +1,23 @@
+# Keep agent indexing focused and prevent accidental secret/media ingestion.
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+coverage.xml
+node_modules/
+staticfiles/
+media/
+brand/raw-captures/
+*.sqlite3
+*.log
+.env
+.env.*
+!.env.example
+.aws/
+.terraform/
+*.tfstate*
+dist/
+build/

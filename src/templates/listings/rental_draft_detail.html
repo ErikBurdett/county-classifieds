@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}{{ listing.title }} rental draft | TheCountyPost Market{% endblock %}
+
+{% block content %}
+  <article class="panel" aria-labelledby="draft-title">
+    <p class="eyebrow">Private rental listing · {{ listing.get_status_display }}</p>
+    <h1 id="draft-title">{{ listing.title }}</h1>
+    <p>{{ details.general_area }} · {{ listing.city }}, {{ listing.county.name }}, {{ listing.state.usps_code }}</p>
+    <dl class="listing-details">
+      <div><dt>Rental type</dt><dd>{{ details.get_rental_type_display }}</dd></div>
+      <div><dt>Monthly rent</dt><dd>{{ details.monthly_rent_minor }} minor units</dd></div>
+      <div><dt>Security deposit</dt><dd>{{ details.security_deposit_minor }} minor units</dd></div>
+      {% if details.beds is not None %}<div><dt>Beds</dt><dd>{{ details.beds }}</dd></div>{% endif %}
+      {% if details.baths is not None %}<div><dt>Baths</dt><dd>{{ details.baths }}</dd></div>{% endif %}
+      <div><dt>Available date</dt><dd>{{ details.available_date }}</dd></div>
+      <div><dt>Pets</dt><dd>{{ details.get_pets_policy_display }}</dd></div>
+      <div><dt>Lease term</dt><dd>{% if details.flexible_term %}Flexible{% else %}{{ details.lease_term_months }} months{% endif %}</dd></div>
+      <div><dt>Exact address (owner only)</dt><dd>{% if details.street_address %}{{ details.street_address }}{% if details.address_line_2 %}, {{ details.address_line_2 }}{% endif %}{% if details.postal_code %}, {{ details.postal_code }}{% endif %}{% else %}Not provided{% endif %}</dd></div>
+      <div><dt>Future public address setting</dt><dd>{% if details.exact_address_public %}Exact address permitted{% else %}General area only{% endif %}</dd></div>
+    </dl>
+    <h2>Description</h2>
+    <p>{{ listing.description|linebreaksbr }}</p>
+    {% if listing.status == "draft" or listing.status == "changes_requested" %}
+      <p><a class="button-link" href="{% url 'listings:edit_listing' listing.id %}">Edit draft</a></p>
+    {% endif %}
+    {% include "listings/_submission_panel.html" %}
+    {% with action=listing.moderation_actions.first %}{% if action.reason_code %}<p>{{ action.reason_code.seller_facing_text }}{% if action.seller_facing_note %} {{ action.seller_facing_note }}{% endif %}</p>{% endif %}{% endwith %}
+  </article>
+  {% include "listings/_media_panel.html" %}
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Your listings | TheCountyPost Market{% endblock %}
+
+{% block content %}
+  <section class="panel" aria-labelledby="dashboard-title">
+    <p class="eyebrow">Seller dashboard</p>
+    <h1 id="dashboard-title">Your listings</h1>
+    <div class="dashboard-quick-links">
+      <a class="button-link" href="{% url 'listings:create_listing' %}">Create listing</a>
+      <a class="button-link button-secondary" href="{% url 'listings:favorites' %}">View saved listings</a>
+    </div>
+    <section class="dashboard-create" aria-labelledby="create-draft-title">
+      <p class="eyebrow">Start a listing</p>
+      <h2 id="create-draft-title">Choose a listing type</h2>
+      <p class="help-text">Choose your category once; the form then shows the relevant fields.</p>
+      <div class="dashboard-actions">
+        <a class="button-link button-secondary" href="{% url 'listings:create_listing' %}">Automobile</a>
+      </div>
+    </section>
+    <dl class="listing-details" aria-label="Listing counts by status">
+      {% for status, count in status_counts.items %}<div><dt>{{ status|capfirst }}</dt><dd>{{ count }}</dd></div>{% endfor %}
+    </dl>
+    {% if listings %}
+      <ul class="listing-list">
+        {% for listing in listings %}
+          <li>
+            <a href="{% url 'listings:owner_listing_detail' listing.id %}">{{ listing.title }}</a>
+            <span>{{ listing.city }}, {{ listing.county.name }}</span>
+            <span class="status-label">{{ listing.get_status_display }}</span>
+            <div class="listing-row-actions" role="group" aria-label="Actions for {{ listing.title }}">
+              {% if listing.status == "awaiting_payment" %}
+                <form method="post" action="{% url 'billing:checkout' listing.id %}">
+                  {% csrf_token %}
+                  <button type="submit">Start local demo checkout</button>
+                </form>
+                <p class="help-text">Checkout is local-demo only. Your listing is not public while payment is awaiting confirmation.</p>
+              {% elif listing.status == "in_review" %}
+                <p class="help-text">A moderator is reviewing this listing. It is not public yet.</p>
+              {% endif %}
+              {% if listing.status == "expired" or listing.status == "published" %}
+                <form method="post" action="{% url 'billing:renewal_checkout' listing.id %}">{% csrf_token %}<button type="submit">Renew</button></form>
+              {% endif %}
+              {% if listing.status == "published" %}
+                <form method="post" action="{% url 'listings:listing_action' listing.id 'sold' %}">{% csrf_token %}<button type="submit">Mark sold</button></form>
+              {% endif %}
+              {% if listing.status == "draft" or listing.status == "changes_requested" or listing.status == "rejected" or listing.status == "sold" or listing.status == "expired" %}
+                <form method="post" action="{% url 'listings:listing_action' listing.id 'archive' %}">{% csrf_token %}<button type="submit">Archive</button></form>
+              {% elif listing.status == "archived" %}
+                <form method="post" action="{% url 'listings:listing_action' listing.id 'restore_draft' %}">{% csrf_token %}<button type="submit">Restore as draft</button></form>
+              {% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty-state">
+        <p>You have no listings yet.</p>
+        <p><a class="button-link" href="{% url 'listings:create_listing' %}">Create an automobile draft</a></p>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}

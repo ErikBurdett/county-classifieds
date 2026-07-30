@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Page not found | TheCountyPost Market{% endblock %}
+{% block robots_meta %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+  <section class="panel" aria-labelledby="not-found-title">
+    <p class="eyebrow">Market finder</p>
+    <h1 id="not-found-title">We could not find that market page</h1>
+    <p>Try finding an active market or return to the marketplace home page.</p>
+    <p><a class="button-link" href="{% url 'locations:market_finder' %}">Find a market</a> <a class="button-link button-secondary" href="{% url 'core:home' %}">Market home</a></p>
+  </section>
+{% endblock %}

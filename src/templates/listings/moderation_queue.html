@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Moderation queue | TheCountyPost Market{% endblock %}
+{% block content %}
+  <section class="panel" aria-labelledby="queue-title">
+    <p class="eyebrow">Staff only</p>
+    <h1 id="queue-title">Moderation queue</h1>
+    {% for listing in listings %}
+      <article class="market-section" aria-labelledby="listing-{{ listing.id }}-title">
+        <h2 id="listing-{{ listing.id }}-title">{{ listing.title }}</h2>
+        <p>{{ listing.vertical.name }} · {{ listing.city }}, {{ listing.state.usps_code }} · submitted {{ listing.created_at }}</p>
+        <p>{{ listing.description }}</p>
+        <dl class="listing-details">
+          <div><dt>Primary category</dt><dd>{{ listing.category.name }}</dd></div>
+          <div><dt>Controlled subcategories</dt><dd>{% for tag in listing.controlled_tags.all %}{{ tag.category.name }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</dd></div>
+          <div><dt>Seller tags (pending public approval)</dt><dd>{% for tag in listing.seller_tags.all %}{{ tag.value }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</dd></div>
+          <div><dt>Additional details (pending public approval)</dt><dd>{% for field in listing.custom_fields.all %}{{ field.label }}: {{ field.value }}{% if not forloop.last %}; {% endif %}{% empty %}None{% endfor %}</dd></div>
+        </dl>
+        <form method="post" action="{% url 'listings:moderate_listing' listing.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="revision" value="{{ listing.lifecycle_revision }}">
+          <fieldset>
+            <legend>Review outcome</legend>
+          <div class="form-field"><label for="outcome-{{ listing.id }}">Outcome</label>
+            <select id="outcome-{{ listing.id }}" name="outcome">
+              <option value="approved">Approve and publish</option>
+              <option value="changes_requested">Request changes</option>
+              <option value="rejected">Reject</option>
+              <option value="suspended">Suspend</option>
+            </select>
+          </div>
+          <div class="form-field"><label for="reason-{{ listing.id }}">Reason code</label>
+            <select id="reason-{{ listing.id }}" name="reason_code"><option value="">Not needed for approval</option>{% for reason in reason_codes %}<option value="{{ reason.id }}">{{ reason.code }}</option>{% endfor %}</select>
+          </div>
+          <div class="form-field"><label for="seller-note-{{ listing.id }}">Seller-facing note</label><textarea id="seller-note-{{ listing.id }}" name="seller_facing_note"></textarea></div>
+          <div class="form-field"><label for="internal-note-{{ listing.id }}">Internal note</label><textarea id="internal-note-{{ listing.id }}" name="internal_note"></textarea></div>
+          </fieldset>
+          <button type="submit">Record outcome</button>
+        </form>
+      </article>
+    {% empty %}
+      <p>No listings are waiting for review.</p>
+    {% endfor %}
+  </section>
+{% endblock %}

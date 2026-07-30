@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Management console | TheCountyPost Market{% endblock %}
+
+{% block content %}
+  <section class="management-hero" aria-labelledby="management-title">
+    <p class="eyebrow">Management console</p>
+    <h1 id="management-title">Marketplace operations</h1>
+    <p>Operational summaries only. Open an existing workflow to review or act on records.</p>
+    {% if is_local_demo %}
+      <p class="management-notice"><strong>Local demo environment.</strong> Demo-only actions, where enabled, remain inside their existing workflow.</p>
+    {% endif %}
+  </section>
+
+  <section class="management-section" aria-labelledby="listing-health-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Listing health</p>
+        <h2 id="listing-health-title">Lifecycle totals</h2>
+      </div>
+    </div>
+    <dl class="metric-grid">
+      {% for status, count in metrics.listing_counts %}
+        <div class="metric-card">
+          <dt>{{ status|capfirst }}</dt>
+          <dd>{{ count }}</dd>
+        </div>
+      {% empty %}
+        <div class="metric-card">
+          <dt>Listings</dt>
+          <dd>0</dd>
+        </div>
+      {% endfor %}
+    </dl>
+  </section>
+
+  <section class="management-section" aria-labelledby="queue-health-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Review and reliability</p>
+        <h2 id="queue-health-title">Operational queues</h2>
+      </div>
+    </div>
+    <dl class="metric-grid">
+      <div class="metric-card"><dt>Moderation assigned</dt><dd>{{ metrics.moderation_assigned }}</dd></div>
+      <div class="metric-card"><dt>Moderation unassigned</dt><dd>{{ metrics.moderation_unassigned }}</dd></div>
+      <div class="metric-card"><dt>Moderation escalated</dt><dd>{{ metrics.moderation_escalated }}</dd></div>
+      <div class="metric-card"><dt>Outbox pending</dt><dd>{{ metrics.outbox_pending }}</dd></div>
+      <div class="metric-card"><dt>Outbox failed</dt><dd>{{ metrics.outbox_failed }}</dd></div>
+      <div class="metric-card"><dt>Oldest pending outbox age</dt><dd>{{ metrics.oldest_pending_age|default:"No pending events" }}</dd></div>
+      <div class="metric-card"><dt>Orders requiring review</dt><dd>{{ metrics.orders_requiring_review }}</dd></div>
+      <div class="metric-card"><dt>Refunds requiring review</dt><dd>{{ metrics.refunds_requiring_review }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="management-section" aria-labelledby="reference-health-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Reference data</p>
+        <h2 id="reference-health-title">Policies, catalog, and geography</h2>
+      </div>
+    </div>
+    <dl class="metric-grid">
+      <div class="metric-card"><dt>Active policies</dt><dd>{{ metrics.active_policies }}</dd></div>
+      <div class="metric-card"><dt>Active states</dt><dd>{{ metrics.active_states }}</dd></div>
+      <div class="metric-card"><dt>Active counties</dt><dd>{{ metrics.active_counties }}</dd></div>
+      <div class="metric-card"><dt>Active verticals</dt><dd>{{ metrics.active_verticals }}</dd></div>
+      <div class="metric-card"><dt>Active categories</dt><dd>{{ metrics.active_categories }}</dd></div>
+      <div class="metric-card"><dt>Active listing kinds</dt><dd>{{ metrics.active_listing_kinds }}</dd></div>
+      <div class="metric-card"><dt>Active products</dt><dd>{{ metrics.active_products }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="management-section" aria-labelledby="operations-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Existing workflows</p>
+        <h2 id="operations-title">Open operational tools</h2>
+      </div>
+    </div>
+    {% if operation_links %}
+      <ul class="operation-grid">
+        {% for link in operation_links %}
+          <li><a class="operation-card" href="{{ link.url }}"><strong>{{ link.title }}</strong><span>{{ link.detail }}</span><span aria-hidden="true">Open tool →</span></a></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-state">Your staff account has no assigned management permissions. Ask an administrator for the least-privileged role needed for your work.</p>
+    {% endif %}
+  </section>
+{% endblock %}

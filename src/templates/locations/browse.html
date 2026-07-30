@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <nav class="breadcrumbs" aria-label="Breadcrumb">
+    <a href="{% url 'core:home' %}">Market home</a>
+    <span aria-hidden="true">/</span>
+    {% if county %}
+      <a href="{% url 'locations:state_context' state.slug %}">{{ state.name }}</a>
+      <span aria-hidden="true">/</span>
+      <span aria-current="page">{{ county.name }}</span>
+    {% else %}
+      <span aria-current="page">{{ state.name }}</span>
+    {% endif %}
+  </nav>
+  <section class="browse-hero" aria-labelledby="browse-title">
+    <p class="eyebrow">{% if county %}County market{% else %}State market{% endif %}</p>
+    <h1 id="browse-title">Listings in {% if county %}{{ county.name }}, {% endif %}{{ state.name }}</h1>
+    <p>{% if county %}This county route starts with statewide results. Choose “This county” to include listings placed in {{ county.name }} (primary or additional placement).{% else %}Browse public listings statewide or narrow your search to an enabled county-equivalent market.{% endif %}</p>
+  </section>
+
+  {% include "locations/_market_finder.html" %}
+  {% include "locations/_market_results.html" %}
+
+  <section class="browse-content" aria-label="Marketplace browse content">
+    <section
+      class="filter-panel"
+      aria-labelledby="filter-title"
+      data-filter-disclosure
+      data-filter-open="{{ filter_disclosure_open|yesno:'true,false' }}"
+      data-filter-has-errors="{{ browse_form.errors|yesno:'true,false' }}"
+    >
+      <form method="get" novalidate data-live-search="browse">
+      <div class="filter-panel-heading">
+        <div>
+          <p class="eyebrow">Refine results</p>
+          <h2 id="filter-title">Filter listings</h2>
+        </div>
+        <p>All filters update this {{ county.name|default:state.name }} market.</p>
+        <button
+          class="filter-disclosure-toggle"
+          type="button"
+          aria-expanded="true"
+          aria-controls="browse-filter-controls"
+          data-filter-toggle
+        >Show filters</button>
+      </div>
+      <div id="browse-filter-controls" class="filter-disclosure-content">
+        {% if browse_form.errors %}
+          <div class="error-summary" role="alert" tabindex="-1" data-filter-error-summary><p>Please correct the filters below.</p>{{ browse_form.non_field_errors }}</div>
+        {% endif %}
+        <div class="filter-fields">
+          {% for group_label, fields in browse_form.visible_filter_groups %}
+            <fieldset class="filter-field-group">
+              <legend>{{ group_label }}</legend>
+              <div class="filter-field-group-fields">
+                {% for field in fields %}
+                <div class="form-field">
+                  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.name == "nearby_radius" %}
+                    <output id="nearby-radius-output" for="{{ field.id_for_label }}">{{ field.value|default:50 }} miles</output>
+                    <p class="help-text">County internal-point estimate, not a radius from you or a listing.</p>
+                  {% endif %}
+                  {% if field.errors %}<span class="field-error" role="alert">{{ field.errors|join:", " }}</span>{% endif %}
+                </div>
+                {% endfor %}
+              </div>
+            </fieldset>
+          {% endfor %}
+        </div>
+        <div class="filter-actions">
+          <button type="submit">Apply filters</button>
+          {% if request.GET %}
+            <a class="button-link button-secondary" href="{{ filter_reset_url }}">Reset filters</a>
+          {% endif %}
+        </div>
+        <p class="live-search-status" role="status" aria-live="polite" aria-atomic="true"></p>
+      </div>
+      </form>
+      <noscript><p class="no-js-note">Apply filters with the button above.</p></noscript>
+    </section>
+
+    <section class="market-section" aria-labelledby="listings-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Public inventory</p>
+          <h2 id="listings-title">Public listings</h2>
+        </div>
+      </div>
+      {% if filter_chips or request.GET %}
+        <nav class="active-filter-summary" aria-label="Active filters">
+          {% if filter_chips %}
+            <span>Active filters:</span>
+            <ul>
+              {% for chip in filter_chips %}
+                <li><a href="{{ chip.url }}" aria-label="Remove {{ chip.label }}">{{ chip.label }} <span aria-hidden="true">×</span></a></li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+          <a class="active-filter-clear" href="{{ filter_clear_all_url }}">Clear all filters</a>
+        </nav>
+      {% endif %}
+      {% include "locations/_browse_results.html" %}
+    </section>
+
+    {% if not is_county %}
+      <section class="market-section" aria-labelledby="counties-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Local markets</p>
+            <h2 id="counties-title">Browse {{ state.name }} counties</h2>
+          </div>
+          <p>Inventory counts include currently public listings only.</p>
+        </div>
+        <div class="market-grid market-grid--counties">
+        {% for available_county in counties %}
+          <a class="market-tile" href="{% url 'locations:county_context' state.slug available_county.slug %}">
+            <span class="market-tile-label">County market</span>
+            <strong>{{ available_county.name }}</strong>
+            <span class="market-tile-action">{{ available_county.public_listing_count }} public listing{{ available_county.public_listing_count|pluralize }} <span aria-hidden="true">→</span></span>
+          </a>
+        {% empty %}<p class="empty-state">No counties are currently enabled for this state.</p>{% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    {% if nearby_rail_available %}
+      <section class="market-section nearby-listings" aria-labelledby="nearby-listings-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Nearby counties</p>
+            <h2 id="nearby-listings-title">Listings about {{ nearby_radius }} miles from {{ county.name }}</h2>
+          </div>
+          <p>Approximate county internal-point distance; not a true listing or user radius.</p>
+        </div>
+        {% if nearby_listing_cards %}
+          {% include "locations/_listing_cards.html" with listing_cards=nearby_listing_cards show_nearby_distance=True %}
+        {% else %}
+          <p class="empty-state">No public listings from other counties are within this approximate county-distance range.</p>
+        {% endif %}
+      </section>
+    {% endif %}
+  </section>
+{% endblock %}

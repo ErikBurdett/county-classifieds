@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "brand": "TheCountyPost",
+  "status": "verified-from-local-first-party-source",
+  "last_updated": "2026-07-23",
+  "notes": "The user directed this marketplace to match the local first-party County Post project. Values below are transcribed from that project's source stylesheet, not inferred.",
+  "approvers": [],
+  "references": [
+    {
+      "id": "REF-001",
+      "type": "source-stylesheet",
+      "label": "The County Post local first-party implementation",
+      "location": "/home/telephone/PIA/the-county-post/src/index.css",
+      "captured_at": "2026-07-23",
+      "captured_by": "project bootstrap",
+      "viewport": "responsive source styles",
+      "local_artifact": "/home/telephone/PIA/the-county-post/src/index.css",
+      "approval_status": "user-directed",
+      "approved_by": "project owner",
+      "notes": "This reference is the user-designated source for marketplace visual parity."
+    }
+  ],
+  "assets": {
+    "logos": [],
+    "fonts": [],
+    "icons": [],
+    "photography": []
+  },
+  "verified_primitives": {
+    "colors": {
+      "ink": "#101010",
+      "paper": "#e7e6e1",
+      "page": "#f4f3ef",
+      "primary": "#123c73",
+      "primary_dark": "#08264e",
+      "accent": "#a8191d",
+      "accent_dark": "#7e1115"
+    },
+    "typography": {
+      "display": "Playfair Display",
+      "body": "Libre Baskerville",
+      "mono": "Roboto Mono"
+    },
+    "spacing": {},
+    "borders": {},
+    "radii": {},
+    "shadows": {
+      "page": "0 10px 0 rgba(0, 0, 0, 0.82)"
+    },
+    "containers": {
+      "maximum_width": "1920px"
+    },
+    "breakpoints": {},
+    "motion": {}
+  },
+  "component_evidence": [],
+  "approved_divergences": []
+}

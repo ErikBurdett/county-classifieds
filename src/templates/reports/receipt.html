@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Report received | TheCountyPost Market{% endblock %}
+{% block content %}
+<section class="panel" aria-labelledby="report-receipt-title">
+  <h1 id="report-receipt-title">Thank you</h1>
+  <p>Your report has been received for review. We cannot provide updates about individual reports.</p>
+  <p><a href="{% url 'core:home' %}">Return to Market home</a></p>
+</section>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load listing_format %}
+{% block content %}
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <a href="{% url 'core:home' %}">Market home</a><span aria-hidden="true">/</span>
+  <a href="{% url 'locations:state_context' listing.state.slug %}">{{ listing.state.name }}</a><span aria-hidden="true">/</span>
+  <a href="{% url 'locations:county_context' listing.state.slug listing.county.slug %}">{{ listing.county.name }}</a>
+</nav>
+<article class="listing-detail">
+  <header class="listing-detail-header">
+    <p class="eyebrow">{% if listing.vertical.slug == "others" %}Others{% else %}{{ listing.vertical.name }} · {{ listing.category.name }}{% endif %}</p>
+    <h1>{{ listing.title }}</h1>
+    <p class="listing-card-price">{{ listing.price_minor|listing_price:listing.currency }}</p>
+    <p>{{ presentation.location }}{% if presentation.address %} · {{ presentation.address }}{% endif %}</p>
+  </header>
+  {% if images %}
+  <section class="listing-gallery" aria-label="Listing images">
+    {% for image in images %}
+      <figure class="listing-gallery-item">
+        <img src="{% url 'locations:public_listing_image' image.id %}" alt="{{ listing.title }} image {{ forloop.counter }}" width="{{ image.width }}" height="{{ image.height }}" {% if not forloop.first %}loading="lazy" decoding="async"{% endif %}>
+      </figure>
+    {% endfor %}
+  </section>
+  {% else %}
+  <section class="listing-gallery listing-gallery--empty" aria-label="Listing images">
+    <p>No listing images are available.</p>
+  </section>
+  {% endif %}
+  <section class="listing-detail-section" aria-labelledby="details-heading">
+    <h2 id="details-heading">{{ presentation.summary }}</h2>
+    <dl class="listing-facts">{% for label, value in presentation.facts %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+  </section>
+  {% if presentation.tags %}
+  <section class="listing-detail-section" aria-labelledby="tags-heading">
+    <h2 id="tags-heading">Tags</h2>
+    <ul class="listing-tags">{% for tag in presentation.tags %}<li>{{ tag }}</li>{% endfor %}</ul>
+  </section>
+  {% endif %}
+  {% if presentation.additional_details %}
+  <section class="listing-detail-section" aria-labelledby="additional-details-heading">
+    <h2 id="additional-details-heading">Additional details</h2>
+    <dl class="listing-facts">{% for label, value in presentation.additional_details %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+  </section>
+  {% endif %}
+  <section class="listing-map-actions" aria-labelledby="map-actions-heading">
+    <div>
+      <p class="eyebrow">Location</p>
+      <h2 id="map-actions-heading">View the area or get directions</h2>
+      {% if presentation.has_exact_public_address %}
+        <p>This listing’s seller chose to publish its exact property address. The links below open Google Maps in a new tab.</p>
+      {% else %}
+        <p>Maps and directions use the nearby {{ presentation.location }} area, not a precise address.</p>
+      {% endif %}
+    </div>
+    <div class="listing-map-frame">
+      <iframe
+        title="Google Maps map for {{ presentation.location }}"
+        src="https://www.google.com/maps?q={{ presentation.map_query|urlencode }}&amp;output=embed"
+        loading="lazy"
+        referrerpolicy="no-referrer"
+        aria-describedby="map-provider-note"
+      ></iframe>
+    </div>
+    <p id="map-provider-note">This map is provided by Google. You can also use the links below to open Google Maps in a new tab.</p>
+    <div class="listing-map-actions-links">
+      <a class="button-link" href="https://www.google.com/maps/search/?api=1&amp;query={{ presentation.map_query|urlencode }}" target="_blank" rel="noopener noreferrer">View on Google Maps <span class="external-window-text">(opens in a new tab)</span></a>
+      <a class="button-link button-secondary" href="https://www.google.com/maps/dir/?api=1&amp;destination={{ presentation.map_query|urlencode }}" target="_blank" rel="noopener noreferrer">Get directions <span class="external-window-text">(opens in a new tab)</span></a>
+    </div>
+  </section>
+  <section class="listing-detail-section" aria-labelledby="description-heading"><h2 id="description-heading">Description</h2><p>{{ listing.description|linebreaksbr }}</p></section>
+  <section class="listing-actions" aria-label="Listing actions">
+    {% if request.user.is_authenticated %}
+    <form method="post" action="{% url 'listings:favorite_toggle' listing.id %}">
+      {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button type="submit">Save listing</button>
+    </form>
+    {% if listing.seller.user_id == request.user.id %}
+    <p><a href="{% url 'listings:edit_listing' listing.id %}">Edit your listing</a></p>
+    {% endif %}
+    {% endif %}
+    <p><a class="listing-report-link" href="{% url 'reports:report_listing' listing.id %}">Report this listing</a></p>
+  </section>
+</article>
+{% endblock %}

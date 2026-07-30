@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-bookworm
+        env:
+          POSTGRES_DB: marketplace_test
+          POSTGRES_USER: marketplace
+          POSTGRES_PASSWORD: marketplace
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U marketplace -d marketplace_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      DJANGO_SECRET_KEY: ci-only-secret
+      DATABASE_URL: postgresql://marketplace:marketplace@127.0.0.1:5432/marketplace_test
+      USE_POSTGRES_TEST_DATABASE: "true"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.11.29"
+          enable-cache: true
+      - run: uv python install 3.13
+      - run: uv sync --frozen --all-groups
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run mypy src
+      - run: uv run python src/manage.py check
+      - name: Production deployment checks
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.production
+          DJANGO_SECRET_KEY: ci-production-check-only
+          DJANGO_ALLOWED_HOSTS: market.example.com
+          DJANGO_CSRF_TRUSTED_ORIGINS: https://market.example.com
+          DATABASE_URL: postgresql://marketplace:marketplace@127.0.0.1:5432/marketplace_test
+          DATABASE_SSL_REQUIRE: "false"
+          AWS_REGION: us-east-1
+          AWS_STORAGE_BUCKET_NAME: ci-placeholder
+          EMAIL_HOST: email-smtp.us-east-1.amazonaws.com
+          EMAIL_HOST_USER: ci-placeholder
+          EMAIL_HOST_PASSWORD: ci-placeholder
+          SES_FROM_EMAIL: market@example.com
+          REPORT_RATE_KEY_SECRET: ci-report-rate-secret
+        run: uv run python src/manage.py check --deploy
+      - run: uv run python src/manage.py makemigrations --check --dry-run --settings=config.settings.test
+      - run: uv run pytest -m "not e2e" --junitxml=junit.xml --cov-report=xml
+      - run: uv run pip-audit
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.11.29"
+          enable-cache: true
+      - run: uv python install 3.13
+      - run: uv sync --frozen --all-groups
+      - run: uv run playwright install --with-deps chromium
+      - run: DJANGO_ALLOW_ASYNC_UNSAFE=true uv run pytest -m e2e --no-cov
+
+  container:
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v6
+      - run: docker build --tag county-post-marketplace:${{ github.sha }} .
+
+  terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_wrapper: false
+      - run: terraform -chdir=infrastructure/terraform fmt -check -recursive
+      - run: terraform -chdir=infrastructure/terraform init -backend=false -input=false
+      - run: terraform -chdir=infrastructure/terraform validate

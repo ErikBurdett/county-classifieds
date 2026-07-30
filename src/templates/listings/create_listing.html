@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{% if editing %}Edit listing{% else %}Create listing{% endif %} | TheCountyPost Market{% endblock %}
+{% block content %}
+<section class="panel listing-form-panel" aria-labelledby="create-listing-title">
+  <p class="eyebrow">Seller dashboard</p>
+  <h1 id="create-listing-title">{% if editing %}Edit listing{% else %}Create listing{% endif %}</h1>
+  <p class="help-text"><span aria-hidden="true">*</span> Required fields. {% if editing %}Your primary category and workflow are fixed for this edit. Changes to published listings return to moderation before becoming public again.{% else %}Choose a vertical, then a postable leaf category to continue.{% endif %}</p>
+  <form method="post" novalidate data-unified-listing-form data-category-url="{% url 'listings:generic_categories' %}" data-county-url="{% url 'listings:generic_county_candidates' %}" data-state-url="{% url 'listings:state_candidates' %}">
+    {% csrf_token %}
+    {% if workflow.typed %}<input type="hidden" name="typed_workflow" value="1">{% endif %}
+    {% if category_form.errors or listing_form.errors or details_form.errors or profile_form.errors or taxonomy_form.errors %}
+      <div class="message message--error error-summary" role="alert" tabindex="-1" data-error-summary><p>Correct the errors below.</p>{{ category_form.non_field_errors }}{{ listing_form.non_field_errors }}{{ details_form.non_field_errors }}{{ profile_form.non_field_errors }}{{ taxonomy_form.non_field_errors }}<ul>{% for field in category_form.visible_fields %}{% for error in field.errors %}<li><a href="#{{ field.id_for_label }}">{{ field.label }}: {{ error }}</a></li>{% endfor %}{% endfor %}{% for field in listing_form.visible_fields %}{% for error in field.errors %}<li><a href="#{{ field.id_for_label }}">{{ field.label }}: {{ error }}</a></li>{% endfor %}{% endfor %}{% for field in details_form.visible_fields %}{% for error in field.errors %}<li><a href="#{{ field.id_for_label }}">{{ field.label }}: {{ error }}</a></li>{% endfor %}{% endfor %}</ul></div>
+    {% endif %}
+    <fieldset>
+      <legend>Category</legend>
+      {% if editing %}
+        <p><strong>{{ listing.vertical.name }}</strong> · {{ listing.category.name }}</p>
+      {% elif selected_category and selected_category.vertical.slug == "others" %}
+        <p><strong>Others</strong></p>
+      {% else %}
+        <div class="generic-form-grid">
+          {% include "listings/_generic_form_field.html" with field=category_form.vertical %}
+          {% include "listings/_generic_form_field.html" with field=category_form.category category_field=True %}
+        </div>
+        <button type="submit" name="show_fields" value="1">Show fields</button>
+      {% endif %}
+    </fieldset>
+    {% if workflow %}
+      <p class="help-text" role="status">Fields for {{ selected_category }} are ready.</p>
+      <fieldset>
+        <legend>1. Listing and location</legend>
+        <div class="generic-form-grid">
+          {% for field in listing_form.visible_fields %}
+            {% if field.name != "vertical" and field.name != "category" and field.name != "additional_counties" and field.name != "state" and field.name != "county" %}
+              {% include "listings/_generic_form_field.html" with field=field %}
+            {% endif %}
+          {% endfor %}
+          {% for field in details_form.visible_fields %}{% include "listings/_generic_form_field.html" with field=field %}{% endfor %}
+          <div class="form-field" data-unified-state-picker>
+            {{ listing_form.state.label_tag }}<span aria-hidden="true"> *</span>
+            <div data-state-fallback>{{ listing_form.state }}</div>
+            <div data-state-enhancement hidden>
+              <label class="county-search__label" for="id_unified_state_search">Search state or territory</label>
+              <input id="id_unified_state_search" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="unified-state-results" autocomplete="off" data-state-input>
+              <ul class="county-search__results" id="unified-state-results" role="listbox" aria-label="Matching states and territories" hidden data-state-results></ul>
+            </div>
+            {% for error in listing_form.state.errors %}<p class="field-error" id="{{ listing_form.state.id_for_label }}_error" role="alert">{{ error }}</p>{% endfor %}
+          </div>
+          <div class="form-field" data-unified-county-picker>
+            {{ listing_form.county.label_tag }}<span aria-hidden="true"> *</span>
+            <div data-county-fallback>{{ listing_form.county }}</div>
+            <div data-county-enhancement hidden>
+              <label class="county-search__label" for="id_unified_county_search">Search county</label>
+              <input id="id_unified_county_search" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="unified-county-results" autocomplete="off" disabled data-county-input>
+              <ul class="county-search__results" id="unified-county-results" role="listbox" aria-label="Matching counties" hidden data-county-results></ul>
+            </div>
+            {% for error in listing_form.county.errors %}<p class="field-error" id="{{ listing_form.county.id_for_label }}_error" role="alert">{{ error }}</p>{% endfor %}
+          </div>
+        </div>
+      </fieldset>
+      {% if profile_form %}
+        <details class="form-disclosure" open>
+          <summary>2. Category details <span class="help-text">(optional unless marked required)</span></summary>
+          <p class="help-text">Optional facts that help describe this {{ selected_category.name|lower }}.</p>
+          <div class="generic-form-grid">
+            {% for field in profile_form.visible_fields %}{% include "listings/_generic_form_field.html" with field=field %}{% endfor %}
+          </div>
+        </details>
+      {% endif %}
+      <details class="form-disclosure" open>
+        <summary>3. Tags and additional details{% if not taxonomy_form.requires_seller_tag %} <span class="help-text">(optional)</span>{% endif %}</summary>
+        <p class="help-text">Your primary category determines the listing workflow. Additional controlled subcategories and seller tags are reviewed before they become public or searchable.</p>
+        <div class="form-field">
+          {{ taxonomy_form.controlled_tags.label_tag }}
+          {{ taxonomy_form.controlled_tags }}
+          {% for error in taxonomy_form.controlled_tags.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-field" data-seller-tags>
+          <span id="seller-tags-label">Seller tags</span>
+          <p class="help-text">{% if taxonomy_form.requires_seller_tag %}Add at least one plain-text tag to classify this Others listing. {% else %}Optional, {% endif %}Plain-text tags are limited to 10. Do not enter contact or location information.</p>
+          {% for field in taxonomy_form.seller_tag_fields %}
+            <label {% if not forloop.first %}hidden data-seller-tag-extra{% endif %}>{{ field.label }}{{ field }}{% for error in field.errors %}<span class="field-error" role="alert">{{ error }}</span>{% endfor %}</label>
+          {% endfor %}
+          <button type="button" data-add-seller-tag>Add another tag</button>
+        </div>
+        <div class="form-field" data-custom-fields>
+          <span id="custom-fields-label">Additional details</span>
+          <p class="help-text">Optional plain-text label and value pairs (up to 8). These are reviewed before public display and are never search filters.</p>
+          {% for label_field, value_field in taxonomy_form.custom_field_pairs %}
+            <div {% if not forloop.first %}hidden data-custom-field-extra{% endif %}>
+              <label>{{ label_field.label }} {{ label_field }}</label>
+              <label>{{ value_field.label }} {{ value_field }}</label>
+            </div>
+          {% endfor %}
+          <button type="button" data-add-custom-field>Add another detail</button>
+        </div>
+      </details>
+      {% if workflow.key == "generic" %}
+        <details class="form-disclosure" open><summary>4. Nearby placement and private address <span class="help-text">(optional)</span></summary><div class="generic-form-grid">
+          {% include "listings/_generic_form_field.html" with field=listing_form.additional_counties full_width=True %}
+          {% include "listings/_generic_form_field.html" with field=listing_form.street_address full_width=True %}
+        </div></details>
+      {% endif %}
+      <button type="submit">{% if editing %}Save listing changes{% else %}Save listing draft{% endif %}</button>
+    {% endif %}
+  </form>
+</section>
+<script src="{% static 'js/unified-listing.js' %}" defer></script>
+{% endblock %}

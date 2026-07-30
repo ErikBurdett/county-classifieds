@@ -1,0 +1,21 @@
+sequenceDiagram
+    participant S as Seller Browser
+    participant D as Django
+    participant P as PostgreSQL
+    participant X as Stripe
+    participant W as Webhook Handler
+    participant O as Outbox Worker
+
+    S->>D: Submit complete paid draft
+    D->>P: Create order + awaiting_payment
+    D->>X: Create Checkout Session (idempotency key)
+    X-->>D: Session ID/URL
+    D-->>S: Redirect to Checkout
+    S->>X: Complete payment
+    X-->>S: Redirect to success status page
+    X->>W: Signed webhook
+    W->>P: Store event ID, lock order/listing
+    W->>P: Mark paid + pending_moderation + outbox
+    W-->>X: 2xx
+    O->>P: Claim notification event
+    O-->>S: Transactional email

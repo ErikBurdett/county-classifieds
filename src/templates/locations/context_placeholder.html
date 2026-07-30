@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block robots_meta %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block title %}{{ state.name }}{% if county %} · {{ county.name }}{% endif %} | TheCountyPost Market{% endblock %}
+
+{% block content %}
+  <section aria-labelledby="location-context-title">
+    <h1 id="location-context-title">
+      TheCountyPost Market in {{ state.name }}{% if county %}, {{ county.name }}{% endif %}
+    </h1>
+    <p>Marketplace browsing for this location is coming soon.</p>
+  </section>
+{% endblock %}

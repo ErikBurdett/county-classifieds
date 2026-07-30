@@ -1,0 +1,28 @@
+---
+description: Django and Python implementation standards.
+globs:
+  - "**/*.py"
+  - "pyproject.toml"
+  - "uv.lock"
+alwaysApply: false
+---
+
+# Django and Python standards
+
+- Target Python 3.13 and the latest Django 5.2 LTS patch permitted by the lockfile.
+- Use type hints on public functions, service methods, selectors, dataclasses, and non-trivial local variables.
+- Prefer explicit keyword arguments, small functions, and domain-specific names.
+- Use `from __future__ import annotations` where configured by the project.
+- Use `Decimal` or integer minor units for money; never binary floats.
+- Use timezone-aware datetimes and `django.utils.timezone`.
+- Do not use mutable defaults. Do not hide I/O in properties.
+- Avoid signals for primary business workflows. Use explicit services and `transaction.on_commit` where needed.
+- Views coordinate request/response concerns; forms validate input; services perform state changes; selectors build reusable read queries.
+- Validate authorization on the server for every mutation. UI visibility is not authorization.
+- Use database constraints for invariants that must survive races.
+- Use `transaction.atomic()` around multi-record invariants; use row locks only with a documented concurrency reason.
+- Avoid broad exception handling. Preserve the original exception and log only safe metadata.
+- Do not log passwords, tokens, full webhook payloads, phone numbers, email bodies, presigned URLs, or uploaded file contents.
+- Avoid `save()` overrides for complex workflows. Prefer named service functions.
+- Keep imports acyclic and apps cohesive.
+- Ruff, mypy/django-stubs, Django system checks, pytest, and migration checks must remain green.
