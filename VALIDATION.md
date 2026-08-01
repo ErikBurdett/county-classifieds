@@ -2,6 +2,22 @@
 
 ## Latest recorded application verification
 
+**LST-011 In Search Of/Wanted listings (2026-07-31):** inspected
+`sqlmigrate listings 0019` (additive non-null `intent` with `offer` database
+default, intent check constraint, and intentional public intent/state index),
+then applied `listings.0019_listing_intent` successfully to the local database.
+Focused wanted, unified-workflow, and search tests passed: 51 passed, 1
+PostgreSQL-only test skipped. `make check` passed: Ruff formatting/lint, mypy
+(158 source files), Django checks, migration check, 291 non-browser tests
+passed, 6 PostgreSQL-only tests skipped, 23 browser tests deselected, and
+85.00% coverage. The first `make test-e2e` run exposed four existing-browser
+URL/heading assertions affected by the new default offer control; after
+canonicalizing the default control in the live-search script and preserving the
+standard heading, the rerun passed: 23 Chromium tests, 297 deselected. The
+migration does no Python backfill: existing rows receive `offer` through the
+database default. Public visibility remains centralized, Wanted is generic-only,
+and DEC-115 records target-category media requirements with no expiry.
+
 **Documentation reconciliation and pre-commit cleanup (2026-07-30):** ran
 `uv run ruff format --check .`, `uv run ruff check .`, `uv run mypy src`,
 `uv run python src/manage.py check`, and

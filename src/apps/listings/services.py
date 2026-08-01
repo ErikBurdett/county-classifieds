@@ -44,6 +44,7 @@ from .models import (
     ListingCustomField,
     ListingImage,
     ListingImageState,
+    ListingIntent,
     ListingMediaPolicy,
     ListingSellerTag,
     ListingStatus,
@@ -432,6 +433,11 @@ def toggle_favorite(*, listing_id: UUID, user: User) -> bool:
 
 
 def _typed_details_for_listing(listing: Listing) -> Any:
+    if listing.intent == ListingIntent.WANTED:
+        try:
+            return listing.generic_details
+        except GenericListingDetails.DoesNotExist as error:
+            raise ValidationError("Wanted listings require generic details.") from error
     try:
         return listing.generic_details
     except GenericListingDetails.DoesNotExist:
@@ -513,6 +519,43 @@ def create_generic_draft(
     details.save()
     _replace_additional_counties(
         listing=listing, counties=additional_counties, postal_code=details.postal_code
+    )
+    return listing
+
+
+@transaction.atomic
+def create_wanted_draft(  # noqa: PLR0913
+    *,
+    seller: SellerProfile,
+    listing_values: dict[str, Any],
+    generic_values: dict[str, Any],
+    additional_counties: list[Any],
+    controlled_categories: list[Any],
+    seller_tags: list[str],
+    custom_fields: list[dict[str, str]],
+) -> Listing:
+    """Create a wanted post without a typed sale-detail or listing-kind row."""
+    require_active_account(user=seller.user)
+    category = listing_values["category"]
+    listing = Listing(
+        seller=seller,
+        intent=ListingIntent.WANTED,
+        vertical=category.vertical,
+        **listing_values,
+    )
+    listing.full_clean()
+    listing.save()
+    details = GenericListingDetails(listing=listing, **generic_values)
+    details.full_clean()
+    details.save()
+    _replace_additional_counties(
+        listing=listing, counties=additional_counties, postal_code=details.postal_code
+    )
+    _replace_listing_taxonomy_and_facts(
+        listing=listing,
+        controlled_categories=controlled_categories,
+        seller_tags=seller_tags,
+        custom_fields=custom_fields,
     )
     return listing
 
@@ -658,7 +701,7 @@ def update_unified_listing(  # noqa: PLR0913
     if listing.status not in OWNER_EDITABLE_STATUSES:
         raise PermissionDenied("Only draft, changed, or published listings may be edited.")
 
-    persisted_workflow = resolve_listing_workflow(category=listing.category)
+    persisted_workflow = resolve_listing_workflow(category=listing.category, intent=listing.intent)
     if persisted_workflow != workflow:
         raise ValidationError("The listing workflow changed. Reload and retry.")
     previous = listing.status

@@ -176,6 +176,12 @@ policy placeholders after the minimal sequence. Nationwide synthetic inventory
 is intentionally excluded because it requires an operator-supplied Census
 import; draft policy documents remain unactivated.
 
+`make seed-demo-wanted-listings` is DEBUG-only and idempotently publishes up to
+three clearly synthetic In Search Of examples against existing local demo
+sellers, enabled counties, and active postable target categories. It does not
+create a seller identity, represent a real request, add media, or modify
+existing rows. Each fixture uses Contact with offer and no expiry under DEC-115.
+
 ## Synthetic data
 
 `make seed-nationwide-demo-inventory` runs the DEBUG-only,

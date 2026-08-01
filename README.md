@@ -13,6 +13,8 @@ foundation, not a production launch.
 - Private typed drafts, generic media, moderation/lifecycle, local deterministic
   billing/refunds, outbox operations, public browse/detail/media, M10 SEO/UI
   foundations, M11 Terraform/runbooks, and M12 staff console/policy foundations.
+- In Search Of/Wanted listings use an additive listing intent and retain their
+  target vertical/category; see `docs/features/LST-011-in-search-of-wanted-listings.md`.
 - No production Stripe, SES, AWS, DNS, ACM, legal approval, staging rehearsal,
   or staff-launch sign-off. See `dev-report.md`.
 

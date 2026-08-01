@@ -50,11 +50,13 @@ from .forms import (
     ProfileAttributesForm,
     RentalDetailsForm,
     RentalListingForm,
+    WantedListingForm,
 )
 from .models import (
     GenericListingDetails,
     ListingImage,
     ListingImageState,
+    ListingIntent,
     ListingStatus,
     ModerationActionType,
     ModerationReasonCode,
@@ -69,6 +71,7 @@ from .services import (
     accept_policies_and_submit_listing,
     begin_image_upload,
     create_unified_draft,
+    create_wanted_draft,
     delete_listing_image,
     finalize_image_upload,
     image_policy_for_listing,
@@ -200,8 +203,77 @@ def _typed_workflow_post_data(data: Any) -> Any:
     return typed_data
 
 
+def _allowlisted_form_initial(*, data: Any, form: Any) -> dict[str, Any]:
+    """Retain display values without binding or validating an advance request."""
+
+    initial: dict[str, Any] = {}
+    for name, field in form.fields.items():
+        values = data.getlist(name)
+        if not values:
+            continue
+        initial[name] = (
+            values if getattr(field.widget, "allow_multiple_selected", False) else values[-1]
+        )
+    return initial
+
+
+def _is_category_only_advance(*, data: Any) -> bool:
+    """Support old no-JavaScript category submissions without masking a save."""
+
+    return not any(
+        key not in {"csrfmiddlewaretoken", "vertical", "category", "show_fields"} for key in data
+    )
+
+
+def _is_workflow_advance(*, data: Any, category_is_valid: bool) -> bool:
+    return data.get("show_fields") == "1" or (
+        data.get("save_listing_draft") != "1"
+        and category_is_valid
+        and _is_category_only_advance(data=data)
+    )
+
+
+def _unbound_workflow_forms(
+    *,
+    workflow: Any,
+    category: Any,
+    data: Any,
+    wanted: bool = False,
+) -> tuple[Any, Any, Any, Any]:
+    """Build workflow controls from allowlisted initial values, never POST-bound."""
+
+    listing_form = details_form = profile_form = None
+    if workflow.typed:
+        listing_form, details_form = _typed_forms_for_workflow(workflow=workflow.key)
+        typed_data = _typed_workflow_post_data(data)
+        listing_form.initial.update(_allowlisted_form_initial(data=typed_data, form=listing_form))
+        details_form.initial.update(_allowlisted_form_initial(data=data, form=details_form))
+    else:
+        blank_listing_form = WantedListingForm() if wanted else GenericListingForm()
+        listing_initial = _allowlisted_form_initial(data=data, form=blank_listing_form)
+        listing_initial.update({"vertical": category.vertical_id, "category": category.id})
+        listing_form = (WantedListingForm if wanted else GenericListingForm)(
+            initial=listing_initial
+        )
+        profile = getattr(category, "posting_profile", None)
+        if not wanted and profile is not None and profile.is_active:
+            profile_form = ProfileAttributesForm(profile=profile)
+            profile_form.initial.update(_allowlisted_form_initial(data=data, form=profile_form))
+
+    # The resolver, not POST data, owns these workflow-selection values.
+    listing_form.initial["vertical"] = category.vertical_id
+    listing_form.initial["category"] = category.id
+    taxonomy_form = ListingTaxonomyAndFactsForm(
+        vertical=category.vertical,
+        primary_category=category,
+        enforce_seller_tag=False,
+    )
+    taxonomy_form.initial.update(_allowlisted_form_initial(data=data, form=taxonomy_form))
+    return listing_form, details_form, profile_form, taxonomy_form
+
+
 @login_required
-def create_listing(request: HttpRequest) -> HttpResponse:  # noqa: PLR0912
+def create_listing(request: HttpRequest) -> HttpResponse:  # noqa: PLR0912, PLR0915
     """One server-resolved create workflow for typed and catalog-profile listings."""
 
     profile_or_response = _seller_profile_or_redirect(request)
@@ -211,26 +283,41 @@ def create_listing(request: HttpRequest) -> HttpResponse:  # noqa: PLR0912
     # location, county, and price controls immediately. Its enhanced category
     # control posts back here to resolve and render the matching typed/profile
     # fields before a draft can be saved.
+    wanted = bool(
+        request.resolver_match and request.resolver_match.url_name == "create_wanted_listing"
+    )
     if request.method == "GET":
-        form = GenericListingForm(initial={"currency": "USD"})
+        form = (WantedListingForm if wanted else GenericListingForm)(initial={"currency": "USD"})
         return render(
             request,
             "listings/generic_draft_form.html",
             {
                 "form": form,
                 "unified_create": True,
+                "wanted_create": wanted,
             },
         )
     category_form = ListingCategoryForm(request.POST or None)
-    showing_fields = request.POST.get("show_fields") == "1"
     selected_category = None
     workflow = None
-    if category_form.is_valid():
+    category_is_valid = category_form.is_valid()
+    if category_is_valid:
         selected_category = category_form.cleaned_data["category"]
-        workflow = resolve_listing_workflow(category=selected_category)
+        workflow = resolve_listing_workflow(
+            category=selected_category,
+            intent=ListingIntent.WANTED if wanted else ListingIntent.OFFER,
+        )
+    advancing = _is_workflow_advance(data=request.POST, category_is_valid=category_is_valid)
     listing_form = details_form = profile_form = taxonomy_form = None
     if selected_category is not None and workflow is not None:
-        if workflow.typed:
+        if advancing:
+            listing_form, details_form, profile_form, taxonomy_form = _unbound_workflow_forms(
+                workflow=workflow,
+                category=selected_category,
+                data=request.POST,
+                wanted=wanted,
+            )
+        elif workflow.typed:
             listing_form, details_form = _typed_forms_for_workflow(
                 workflow=workflow.key,
                 data=_typed_workflow_post_data(request.POST),
@@ -238,21 +325,21 @@ def create_listing(request: HttpRequest) -> HttpResponse:  # noqa: PLR0912
         else:
             listing_data = request.POST.copy()
             listing_data["category"] = str(selected_category.id)
-            listing_form = GenericListingForm(listing_data)
+            listing_form = (WantedListingForm if wanted else GenericListingForm)(listing_data)
             profile = getattr(selected_category, "posting_profile", None)
-            if profile is not None and profile.is_active:
+            if not wanted and profile is not None and profile.is_active:
                 profile_form = ProfileAttributesForm(
                     request.POST,
                     profile=profile,
                 )
-        taxonomy_form = ListingTaxonomyAndFactsForm(
-            request.POST,
-            vertical=selected_category.vertical,
-            primary_category=selected_category,
-            enforce_seller_tag=not showing_fields,
-        )
+        if not advancing:
+            taxonomy_form = ListingTaxonomyAndFactsForm(
+                request.POST,
+                vertical=selected_category.vertical,
+                primary_category=selected_category,
+            )
 
-    if showing_fields:
+    if advancing:
         return render(
             request,
             "listings/create_listing.html",
@@ -273,7 +360,7 @@ def create_listing(request: HttpRequest) -> HttpResponse:  # noqa: PLR0912
         and workflow is not None
         and listing_form is not None
     ):
-        valid = category_form.is_valid() and listing_form.is_valid()
+        valid = category_is_valid and listing_form.is_valid()
         if workflow.typed:
             valid = bool(valid and details_form is not None and details_form.is_valid())
         elif profile_form is not None:
@@ -283,7 +370,25 @@ def create_listing(request: HttpRequest) -> HttpResponse:  # noqa: PLR0912
             assert taxonomy_form is not None
             listing_values = listing_form.cleaned_data.copy()
             listing_values["category"] = selected_category
-            if workflow.typed:
+            if wanted:
+                additional_counties = list(listing_values.pop("additional_counties"))
+                generic_values = {
+                    field: listing_values.pop(field)
+                    for field in ("price_mode", "postal_code", "street_address")
+                }
+                generic_values["schema_version"] = 1
+                generic_values["attributes"] = {}
+                listing_values.pop("vertical", None)
+                listing = create_wanted_draft(
+                    seller=profile_or_response,
+                    listing_values=listing_values,
+                    generic_values=generic_values,
+                    additional_counties=additional_counties,
+                    controlled_categories=list(taxonomy_form.cleaned_data["controlled_tags"]),
+                    seller_tags=taxonomy_form.cleaned_data["seller_tags"],
+                    custom_fields=taxonomy_form.cleaned_data["custom_fields"],
+                )
+            elif workflow.typed:
                 assert details_form is not None
                 listing = create_unified_draft(
                     seller=profile_or_response,
@@ -329,6 +434,7 @@ def create_listing(request: HttpRequest) -> HttpResponse:  # noqa: PLR0912
             "taxonomy_form": taxonomy_form,
             "workflow": workflow,
             "selected_category": selected_category,
+            "wanted_create": wanted,
         },
     )
 
@@ -356,7 +462,7 @@ def edit_listing(request: HttpRequest, listing_id: UUID) -> HttpResponse:
     if isinstance(profile_or_response, HttpResponse):
         return profile_or_response
     listing = get_owned_listing(listing_id=listing_id, seller=profile_or_response)
-    workflow = resolve_listing_workflow(category=listing.category)
+    workflow = resolve_listing_workflow(category=listing.category, intent=listing.intent)
     category_form = ListingCategoryForm(
         initial={"vertical": listing.vertical_id, "category": listing.category_id},
     )
@@ -402,7 +508,10 @@ def edit_listing(request: HttpRequest, listing_id: UUID) -> HttpResponse:
                 listing.additional_counties.values_list("county_id", flat=True)
             ),
         }
-        listing_form = GenericListingForm(
+        listing_form_class = (
+            WantedListingForm if listing.intent == ListingIntent.WANTED else GenericListingForm
+        )
+        listing_form = listing_form_class(
             request.POST or None,
             instance=listing,
             initial=generic_initial,
@@ -411,7 +520,7 @@ def edit_listing(request: HttpRequest, listing_id: UUID) -> HttpResponse:
         listing_form.fields["category"].disabled = True
         details_form = None
         profile = getattr(listing.category, "posting_profile", None)
-        if profile is not None and profile.is_active:
+        if listing.intent != ListingIntent.WANTED and profile is not None and profile.is_active:
             profile_form = ProfileAttributesForm(
                 request.POST or None,
                 initial=details.attributes,

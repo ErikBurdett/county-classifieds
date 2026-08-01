@@ -24,9 +24,19 @@ parents such as `Other` remain leaves. Each option includes vertical and, when p
 group context. JavaScript enhances the ordinary **Show fields** submission immediately
 after leaf selection. Without JavaScript, the seller uses that control directly; the
 server rerenders the same form with the selected workflow and preserves all
-workflow-eligible values/errors without creating a draft. Generic placement, price,
-private-address, and taxonomy/fact values remain bound; ineligible vertical values
-are not carried into a typed or generic representation.
+workflow-eligible values without creating a draft. Generic placement, price,
+private-address, and taxonomy/fact values are retained for display; ineligible
+vertical values are not carried into a typed or generic representation.
+A category/workflow advance is deliberately non-persistent and non-validating: the
+server validates only the selected active vertical and postable leaf needed to resolve
+the workflow, then builds unbound workflow, profile, and taxonomy forms from
+strictly allowlisted POST values. This preserves display values without treating them
+as validated or showing missing-field errors. **Save listing draft** carries an
+explicit final-save intent and binds every common, typed, profile, and taxonomy form
+with the existing validation rules. For compatibility, a valid category-only POST
+without an intent is treated as an advance; a POST carrying workflow values retains
+the existing final-save behavior. A forged or stale group ID displays only the
+postable-subcategory error and renders no workflow fields.
 A stale or forged group ID receives the clear postable-subcategory error. A normal POST
 never trusts a client workflow, profile version, field label, or schema.
 
@@ -184,6 +194,9 @@ moderation, or provider integrations.
   size limits, visibility, search inclusion, and material edits.
 - Route tests cover authentication, owner authorization, CSRF, no-JS group/leaf
   validation, generic and typed creates, and non-overlapping detail rows.
+- Create tests cover non-validating category/workflow advances across every typed
+  workflow family, catalog profiles, and Others; preserved allowlisted values; explicit
+  final-save required-field errors; and category-group-only errors.
 - Seed tests prove idempotency and preservation of unknown historical profile records.
 - Playwright covers Home and a catalog-only listing, plus a 390px narrow check.
 - Run migration check, inspect `sqlmigrate`, `make check`, and `make test-e2e`.

@@ -2,6 +2,12 @@
 
 ## Delivered
 
+- Added LST-011 In Search Of/Wanted listings as a persisted listing intent,
+  retaining target vertical/category rather than introducing a cross-vertical
+  catalog branch. Wanted posts use generic details, standard moderation and
+  visibility boundaries, explicit browse filtering, text labels, and the
+  dedicated `/in-search-of/` directory.
+
 - Refined unified listing create/edit into numbered essential sections with
   open native optional disclosures, compact controlled-tag choices, linked
   error summaries, and responsive 390px safeguards without changing listing
@@ -34,8 +40,22 @@
 - Grouped seller listing-row controls for narrow touch layouts and verified
   mobile seller/staff-management dashboard overflow and permitted operation
   links without changing actions, permissions, or lifecycle behavior.
+- Repaired unified create-form validation so category/workflow advancement
+  validates only the active vertical and postable leaf, creates no listing, and
+  renders unbound allowlisted workflow/profile/taxonomy values without an error
+  summary or required-field errors. Explicit final draft saves retain the
+  existing complete common, typed, profile, taxonomy, ZIP, broker, tag, fact,
+  lifecycle, CSRF, and authorization validation. A category-only legacy POST
+  advances safely; an invalid group shows only the postable-subcategory error.
 
 ## Security and operations
+
+LST-011 adds an additive intent column, check constraint, and public
+intent/state index. Existing rows default safely to offers. Public queries still
+begin at the centralized selector; Wanted cannot create typed sale details or a
+listing kind, and FTS remains public-field-only. DEC-115 temporarily applies
+target-category media requirements and no expiry; it adds no payment, messaging,
+rating, or automated matching behavior.
 
 No migration, lifecycle, authorization, or privacy policy change. Listing
 detail now contains a lazy Google Maps iframe, which makes a third-party
@@ -58,9 +78,14 @@ This responsive slice has no migration, route, authorization, listing,
 moderation, pricing, search, map, SEO, or privacy-policy impact. It adds no
 brand asset, framework, or third-party dependency and preserves normal
 server-rendered navigation and form submissions when JavaScript is disabled.
+The validation repair also has no migration or security-policy impact: it
+removes premature validation only from a non-persistent workflow-selection
+request and does not relax final-save validation or ownership/CSRF protections.
 
 ## Verification
 
-Verified locally on 2026-07-27: `make check` passed (214 non-browser tests, 5
-PostgreSQL-only skips, 14 browser tests deselected, 85.37% coverage) and
-`make test-e2e` passed (14 Chromium tests). No migration was generated.
+Validated locally on 2026-07-31: `make check` passed (289 non-browser tests,
+6 skips, 23 browser tests deselected, 85.25% coverage) and `make test-e2e`
+passed (23 Chromium tests). This included a 390px browser assertion that
+workflow selection exposes its fields without a premature error summary or
+missing-required-field errors. No migration was generated.

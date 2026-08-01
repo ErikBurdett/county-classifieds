@@ -216,7 +216,10 @@ def test_unified_typed_advance_preserves_common_values_without_creating_draft(
 
     assert response.status_code == 200
     assert Listing.objects.count() == 0
-    assert response.context["listing_form"].is_bound
+    assert not response.context["listing_form"].is_bound
+    assert not response.context["details_form"].is_bound
+    assert not response.context["taxonomy_form"].is_bound
+    assert b"Correct the errors below." not in response.content
     assert response.context["listing_form"]["title"].value() == "Preserved home"
     assert response.context["listing_form"]["price_minor"].value() == "25000000"
     assert response.context["listing_form"]["broker_name"].value() == "Panhandle Realty"
@@ -282,12 +285,95 @@ def test_unified_generic_advance_preserves_profile_county_price_and_facts(
 
     assert response.status_code == 200
     assert Listing.objects.count() == 0
-    assert response.context["listing_form"].is_bound
+    assert not response.context["listing_form"].is_bound
+    assert not response.context["profile_form"].is_bound
+    assert not response.context["taxonomy_form"].is_bound
+    assert b"Correct the errors below." not in response.content
     assert response.context["listing_form"]["additional_counties"].value() == [str(extra_county.id)]
     assert response.context["listing_form"]["asking_price"].value() == "25.00"
     assert response.context["listing_form"]["street_address"].value() == "1 Private Way"
     assert response.context["profile_form"]["availability"].value() == "weekdays"
     assert response.context["taxonomy_form"]["seller_tag_0"].value() == "Weekend"
+
+
+@pytest.mark.parametrize(
+    ("vertical_slug", "category_slug", "expected_workflow"),
+    [
+        ("autos", "cars", "auto"),
+        ("real-estate", "homes", "home"),
+        ("rentals", "apartments", "rental"),
+        ("farm-ranch", "tractors", "ag_equipment"),
+        ("farm-ranch", "pasture-lease", "pasture"),
+        ("livestock-animals", "cattle", "livestock"),
+        ("home-garden", "furniture", "home_goods"),
+        ("appliances", "washers", "home_goods"),
+        ("services", "cleaning", "generic"),
+    ],
+)
+def test_unified_advance_is_non_validating_for_each_workflow_family(
+    client: Client,
+    unified_reference: tuple[SellerProfile, State, County],
+    vertical_slug: str,
+    category_slug: str,
+    expected_workflow: str,
+) -> None:
+    seller, _state, _county = unified_reference
+    vertical = Vertical.objects.create(name=vertical_slug, slug=vertical_slug)
+    category = Category.objects.create(
+        vertical=vertical,
+        name=category_slug,
+        slug=category_slug,
+    )
+    if expected_workflow == "generic":
+        profile = CatalogPostingProfile.objects.create(category=category)
+        CatalogPostingField.objects.create(
+            profile=profile,
+            key="availability",
+            label="Availability",
+            field_type="choice",
+            required=True,
+            choices=["weekdays"],
+        )
+    client.force_login(seller.user)
+
+    response = client.post(
+        reverse("listings:create_listing"),
+        {"show_fields": "1", "vertical": vertical.id, "category": category.id},
+    )
+
+    assert response.status_code == 200
+    assert response.context["workflow"].key == expected_workflow
+    assert not response.context["listing_form"].is_bound
+    if expected_workflow == "generic":
+        assert not response.context["profile_form"].is_bound
+    assert b"Correct the errors below." not in response.content
+    assert b"This field is required." not in response.content
+    assert Listing.objects.count() == 0
+
+
+def test_unified_explicit_final_save_validates_every_required_field(
+    client: Client, unified_reference: tuple[SellerProfile, State, County]
+) -> None:
+    seller, _state, _county = unified_reference
+    vertical = Vertical.objects.create(name="Autos", slug="autos")
+    category = Category.objects.create(vertical=vertical, name="Cars", slug="cars")
+    client.force_login(seller.user)
+
+    response = client.post(
+        reverse("listings:create_listing"),
+        {
+            "save_listing_draft": "1",
+            "vertical": vertical.id,
+            "category": category.id,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.context["listing_form"].is_bound
+    assert response.context["details_form"].is_bound
+    assert b"Correct the errors below." in response.content
+    assert b"This field is required." in response.content
+    assert Listing.objects.count() == 0
 
 
 def test_unified_create_entry_starts_with_common_listing_controls(
@@ -399,6 +485,9 @@ def test_unified_no_javascript_group_submission_has_clear_error(
     assert response.status_code == 200
     assert b"Choose a postable subcategory, not a category group." in response.content
     assert b"Fields for" not in response.content
+    assert response.context["workflow"] is None
+    assert response.context["listing_form"] is None
+    assert b"Title" not in response.content
 
 
 def test_unified_others_no_javascript_resolves_general_and_requires_a_seller_tag(
@@ -418,6 +507,8 @@ def test_unified_others_no_javascript_resolves_general_and_requires_a_seller_tag
     assert advance.context["selected_category"] == general
     assert b'id="id_category"' not in advance.content
     assert b"Add at least one plain-text tag to classify this Others listing." in advance.content
+    assert b"Correct the errors below." not in advance.content
+    assert b"This field is required." not in advance.content
 
     missing_tag = client.post(
         reverse("listings:create_listing"),

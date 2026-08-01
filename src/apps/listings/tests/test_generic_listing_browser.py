@@ -17,6 +17,11 @@ class LiveServer(Protocol):
     url: str
 
 
+def _expect_no_validation_errors(page: Page) -> None:
+    expect(page.locator("[data-error-summary]")).to_have_count(0)
+    expect(page.get_by_text("This field is required.")).to_have_count(0)
+
+
 @pytest.mark.django_db(transaction=True)
 def test_generic_county_search_selects_an_alaska_county_with_keyboard(
     page: Page, live_server: LiveServer
@@ -218,6 +223,7 @@ def test_unified_home_and_catalog_profile_flows_at_mobile_width(
     page.get_by_label("Asking price (USD)").fill("250000.00")
     page.get_by_label("Category").select_option(str(home_category.id))
     expect(page.get_by_label("Property type")).to_be_visible()
+    _expect_no_validation_errors(page)
     expect(page.get_by_label("Broker or brokerage")).to_be_visible()
     expect(page.get_by_label("Title")).to_have_value("Preserved mobile home")
     expect(page.get_by_label("Price minor")).to_have_value("25000000")

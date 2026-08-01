@@ -46,6 +46,11 @@ drafts, and draft policy placeholders:
 make seed-demo-full
 ```
 
+The full fixture also runs `make seed-demo-wanted-listings`: a DEBUG-only,
+idempotent set of clearly synthetic Wanted examples. It reuses an existing
+local demo seller, target category media policy, and the normal approval path;
+it creates no real request or identity and has no expiration under DEC-115.
+
 **Nationwide typed-search demo** — requires the operator to provide the Census
 archive and checksum. Validate it first, then import, seed, and rebuild
 PostgreSQL documents:
@@ -305,6 +310,7 @@ make shell
 make seed-demo-minimal
 make seed-demo-full
 make seed-demo-generic-taxonomy
+make seed-demo-wanted-listings
 make seed-demo-marketplace
 make seed-nationwide-demo-inventory
 make seed-demo-properties

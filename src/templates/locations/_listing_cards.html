@@ -12,7 +12,7 @@
           <div class="listing-card-image listing-card-image--empty" aria-label="No image available">No image available</div>
         {% endif %}
         <header>
-          <p class="listing-card-label">{% if listing.vertical.slug == "others" %}Others{% else %}{{ listing.vertical.name }} · {{ listing.category.name }}{% endif %}</p>
+          <p class="listing-card-label">{% if listing.intent == "wanted" %}Wanted · In Search Of · {{ listing.vertical.name }} · {{ listing.category.name }}{% elif listing.vertical.slug == "others" %}Others{% else %}{{ listing.vertical.name }} · {{ listing.category.name }}{% endif %}</p>
           <h3><a href="{% url 'locations:listing_detail' listing.state.slug listing.county.slug listing.id %}">{{ listing.title }}</a></h3>
         </header>
         <p class="listing-card-spec">{{ presentation.summary }}</p>

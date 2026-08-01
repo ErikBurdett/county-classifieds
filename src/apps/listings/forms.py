@@ -362,7 +362,9 @@ class GenericListingForm(forms.ModelForm):  # type: ignore[type-arg]
         county_field.queryset = County.objects.none()
         additional_counties_field.queryset = County.objects.none()
         state_value = (
-            self.data.get("state") if self.is_bound else getattr(self.instance, "state_id", None)
+            self.data.get("state")
+            if self.is_bound
+            else self.initial.get("state", getattr(self.instance, "state_id", None))
         )
         selected_vertical = (
             self.data.get("vertical") if self.is_bound else self.initial.get("vertical")
@@ -444,6 +446,37 @@ class GenericListingForm(forms.ModelForm):  # type: ignore[type-arg]
             cleaned["price_minor"] = int(price * 100)
             cleaned["currency"] = "USD"
         else:
+            cleaned["price_minor"] = None
+            cleaned["currency"] = ""
+        return cleaned
+
+
+class WantedListingForm(GenericListingForm):
+    """Generic-only target-category form for an In Search Of listing."""
+
+    price_mode = forms.ChoiceField(
+        choices=(
+            ("fixed", "Budget (USD)"),
+            ("contact", "Contact with offer"),
+        ),
+        initial="contact",
+        label="Budget preference",
+    )
+    asking_price = forms.DecimalField(
+        required=False,
+        min_value=Decimal("0"),
+        max_digits=16,
+        decimal_places=2,
+        label="Budget (USD)",
+        help_text=(
+            "Optional. Leave blank and choose Contact with offer if you do not have a budget."
+        ),
+        widget=forms.NumberInput(attrs={"min": "0", "step": "0.01", "inputmode": "decimal"}),
+    )
+
+    def clean(self) -> dict[str, Any]:
+        cleaned = super().clean()
+        if cleaned.get("price_mode") == "contact":
             cleaned["price_minor"] = None
             cleaned["currency"] = ""
         return cleaned

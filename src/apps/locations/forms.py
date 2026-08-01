@@ -168,6 +168,12 @@ class PublicBrowseForm(forms.Form):
         label="Search listings",
         widget=forms.TextInput(attrs={"id": "listing-search-q"}),
     )
+    intent = forms.ChoiceField(
+        required=False,
+        choices=(("offer", "For sale"), ("wanted", "Wanted"), ("all", "All listings")),
+        initial="offer",
+        label="Listing type",
+    )
     scope = ScopeChoiceField(
         required=False,
         choices=(("state", "Statewide"), ("county", "This county")),
@@ -275,6 +281,9 @@ class PublicBrowseForm(forms.Form):
             elif name == "scope":
                 if value == "county":
                     parameters.append((name, value))
+            elif name == "intent":
+                if value != "offer":
+                    parameters.append((name, str(value)))
             elif name == "sort":
                 if value != "newest" or self.data.get(name):
                     parameters.append((name, str(value)))
@@ -288,6 +297,7 @@ class PublicBrowseForm(forms.Form):
 
         common_names = (
             "q",
+            "intent",
             "scope",
             "vertical",
             "category",
@@ -305,13 +315,18 @@ class PublicBrowseForm(forms.Form):
             groups.append(("Listing details", [self[name] for name in typed_names]))
         return groups
 
-    def active_filter_labels(self) -> list[tuple[str, str]]:
+    def active_filter_labels(self) -> list[tuple[str, str]]:  # noqa: PLR0912
         """Describe active, validated filters without reflecting arbitrary query keys."""
 
         labels: list[tuple[str, str]] = []
         for name, value in self.query_parameters():
             if name == "q":
                 labels.append((name, f"Search: {value}"))
+            elif name == "intent":
+                if value != "offer":
+                    labels.append(
+                        (name, f"Listing type: {'Wanted' if value == 'wanted' else 'All listings'}")
+                    )
             elif name == "vertical":
                 labels.append((name, f"Vertical: {self.cleaned_data[name].name}"))
             elif name == "category":
@@ -501,6 +516,12 @@ class PublicBrowseForm(forms.Form):
 
         return "county" if self.data.get("scope") == "county" else "state"
 
+    def clean_intent(self) -> str:
+        """Invalid values preserve the existing offer-only browse default."""
+
+        value = self.data.get("intent", "offer")
+        return value if value in {"offer", "wanted", "all"} else "offer"
+
     def clean(self) -> dict[str, Any]:
         cleaned = super().clean() or {}
         vertical = cleaned.get("vertical")
@@ -602,6 +623,8 @@ def _apply_vertical_filters(
 
 def apply_public_filters(queryset: QuerySet[Listing], form: PublicBrowseForm) -> QuerySet[Listing]:
     values = form.cleaned_data
+    if values.get("intent") != "all":
+        queryset = queryset.filter(intent=values.get("intent") or "offer")
     for field_name in ("county", "vertical", "category"):
         if values.get(field_name):
             queryset = queryset.filter(**{field_name: values[field_name]})

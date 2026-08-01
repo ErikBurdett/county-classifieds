@@ -8,6 +8,12 @@ app_name = "locations"
 
 urlpatterns = [
     path("markets/", views.market_finder, name="market_finder"),
+    path("in-search-of/", views.in_search_of, name="in_search_of"),
+    path(
+        "in-search-of/<slug:state_slug>/",
+        views.in_search_of,
+        name="in_search_of_state",
+    ),
     path("images/<uuid:image_id>/", views.public_listing_image, name="public_listing_image"),
     path(
         "<slug:state_slug>/<slug:county_slug>/listing/<uuid:listing_id>/",

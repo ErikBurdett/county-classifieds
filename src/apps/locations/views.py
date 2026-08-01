@@ -208,6 +208,36 @@ def state_context(request: HttpRequest, state_slug: str) -> HttpResponse:
 
 
 @require_GET
+def in_search_of(request: HttpRequest, state_slug: str | None = None) -> HttpResponse:
+    """Dedicated wanted directory reusing the centralized public browse boundary."""
+    if state_slug:
+        state = get_active_state_by_slug(state_slug=state_slug.lower())
+    else:
+        requested = request.GET.get("state", "")
+        state = (
+            State.objects.filter(pk=requested, is_active=True, is_network_enabled=True).first()
+            if requested.isdigit()
+            else State.objects.filter(is_active=True, is_network_enabled=True)
+            .order_by("name")
+            .first()
+        )
+    if state is None:
+        return render(request, "404.html", status=404)
+    query = request.GET.copy()
+    query["intent"] = "wanted"
+    request.GET = query  # type: ignore[assignment]
+    context = _browse_context(request=request, state=state)
+    context.update(
+        {
+            "in_search_of": True,
+            "location_finder_form": PublicMarketFinderForm(),
+            "seo_metadata": directory_metadata(request=request, state=state),
+        }
+    )
+    return _browse_response(request=request, context=context)
+
+
+@require_GET
 def county_context(request: HttpRequest, state_slug: str, county_slug: str) -> HttpResponse:
     canonical_state_slug = state_slug.lower()
     canonical_county_slug = county_slug.lower()

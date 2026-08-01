@@ -41,6 +41,7 @@
           {% if user.is_authenticated %}
             {% if user.account_status == "active" %}
               <a class="button-link header-create-link" href="{% url 'listings:create_listing' %}">Create listing</a>
+              <a class="market-link" href="{% url 'listings:create_wanted_listing' %}">Create In Search Of</a>
             {% endif %}
           {% endif %}
           <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation" data-nav-toggle>
@@ -65,6 +66,7 @@
             <a class="market-link" href="{% url 'accounts:register' %}">Register</a>
           {% endif %}
           <a class="market-link" href="https://thecountypost.com">County Post news</a>
+          <a class="market-link" href="{% url 'locations:in_search_of' %}">In Search Of</a>
         </nav>
       </header>
       {% if messages %}

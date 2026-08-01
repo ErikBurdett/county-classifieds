@@ -18,6 +18,7 @@
     for (const [key, value] of values.entries()) {
       if (key === "nearby_radius" && value === "50") continue;
       if (key === "scope" && value === "state") continue;
+      if (key === "intent" && value === "offer") continue;
       if (typeof value === "string" && value) {
         url.searchParams.set(key, value);
       }

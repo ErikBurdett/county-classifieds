@@ -8,7 +8,7 @@
 </nav>
 <article class="listing-detail">
   <header class="listing-detail-header">
-    <p class="eyebrow">{% if listing.vertical.slug == "others" %}Others{% else %}{{ listing.vertical.name }} · {{ listing.category.name }}{% endif %}</p>
+    <p class="eyebrow">{% if listing.intent == "wanted" %}Wanted · In Search Of · {{ listing.vertical.name }} · {{ listing.category.name }}{% elif listing.vertical.slug == "others" %}Others{% else %}{{ listing.vertical.name }} · {{ listing.category.name }}{% endif %}</p>
     <h1>{{ listing.title }}</h1>
     <p class="listing-card-price">{{ listing.price_minor|listing_price:listing.currency }}</p>
     <p>{{ presentation.location }}{% if presentation.address %} · {{ presentation.address }}{% endif %}</p>

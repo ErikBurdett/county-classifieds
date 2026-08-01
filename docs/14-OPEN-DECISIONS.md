@@ -35,10 +35,17 @@ Do not bury these choices in code. Resolve P0 items before the dependent milesto
 | DEC-112 | IaC tool | **Accepted 2026-07-23:** Terraform, with variable-driven configuration and externally configured encrypted remote state. See ADR-0017. | Infrastructure |
 | DEC-113 | Generic local-demo placement pricing | **Accepted 2026-07-23:** $10 primary county plus $5 per additional county is DEBUG-only demo configuration; it is independent of item price mode and does not block moderation. See ADR-0019. | LST-009 |
 
+## Accepted follow-up decisions
+
+- **DEC-115 — Wanted/ISO temporary lifecycle and media policy:** **Accepted
+  2026-07-31.** Wanted listings honor the current media requirement of their
+  target category and have no expiration until a later accepted policy changes
+  that behavior. See ADR-0024 and LST-011.
+
 ## P2 — Phase 1B/later
 
 - Saved-search immediate versus digest frequency and consent.
-- Wanted/ISO pricing, photo, and expiration rules.
+- Wanted/ISO production pricing and any replacement expiration policy.
 - Messaging contact-redaction behavior and limitations.
 - Messaging attachments, moderation access, deletion, and retention.
 - Blocking semantics.

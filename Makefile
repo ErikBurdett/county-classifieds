@@ -1,4 +1,4 @@
-.PHONY: lock bootstrap format format-check lint typecheck django-check production-check migration-check test test-fast test-e2e install-browsers check run shell migrate collectstatic build audit compose-up compose-down seed-marketplace-catalog seed-texas-autos seed-demo-marketplace seed-demo-minimal seed-demo-full seed-demo-generic-taxonomy seed-nationwide-demo-inventory seed-demo-properties seed-demo-rural-drafts seed-demo-home-goods-drafts seed-moderation-reason-codes seed-demo-billing seed-demo-staff seed-generic-demo-pricing provision-staff-groups seed-draft-policy-documents replay-payment-events cleanup-listing-media launch-smoke import-census-geography import-hud-zip-counties enable-nationwide-directory process-outbox expire-listings schedule-listing-reminders inspect-outbox rebuild-listing-search-documents terraform-fmt terraform-validate
+.PHONY: lock bootstrap format format-check lint typecheck django-check production-check migration-check test test-fast test-e2e install-browsers check run shell migrate collectstatic build audit compose-up compose-down seed-marketplace-catalog seed-texas-autos seed-demo-marketplace seed-demo-minimal seed-demo-full seed-demo-generic-taxonomy seed-demo-wanted-listings seed-nationwide-demo-inventory seed-demo-properties seed-demo-rural-drafts seed-demo-home-goods-drafts seed-moderation-reason-codes seed-demo-billing seed-demo-staff seed-generic-demo-pricing provision-staff-groups seed-draft-policy-documents replay-payment-events cleanup-listing-media launch-smoke import-census-geography import-hud-zip-counties enable-nationwide-directory process-outbox expire-listings schedule-listing-reminders inspect-outbox rebuild-listing-search-documents terraform-fmt terraform-validate
 
 UV := uv run
 DOCKER ?= $(shell command -v docker.exe >/dev/null 2>&1 && printf '%s' docker.exe || printf '%s' docker)
@@ -97,10 +97,13 @@ seed-demo-marketplace:
 
 seed-demo-minimal: seed-texas-autos seed-demo-marketplace seed-moderation-reason-codes seed-demo-billing provision-staff-groups seed-demo-staff
 
-seed-demo-full: seed-demo-minimal seed-marketplace-catalog seed-demo-generic-taxonomy seed-demo-properties seed-demo-rural-drafts seed-demo-home-goods-drafts seed-draft-policy-documents
+seed-demo-full: seed-demo-minimal seed-marketplace-catalog seed-demo-generic-taxonomy seed-demo-wanted-listings seed-demo-properties seed-demo-rural-drafts seed-demo-home-goods-drafts seed-draft-policy-documents
 
 seed-demo-generic-taxonomy:
 	$(UV) python src/manage.py seed_demo_generic_taxonomy $(EXTRA_ARGS)
+
+seed-demo-wanted-listings:
+	$(UV) python src/manage.py seed_demo_wanted_listings
 
 seed-nationwide-demo-inventory:
 	$(UV) python src/manage.py seed_nationwide_demo_inventory

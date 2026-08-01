@@ -115,9 +115,17 @@ class ListingStatus(models.TextChoices):
     ARCHIVED = "archived", "Archived"
 
 
+class ListingIntent(models.TextChoices):
+    OFFER = "offer", "For sale"
+    WANTED = "wanted", "Wanted"
+
+
 class Listing(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     seller = models.ForeignKey(SellerProfile, on_delete=models.PROTECT, related_name="listings")
+    intent = models.CharField(
+        max_length=16, choices=ListingIntent.choices, default=ListingIntent.OFFER
+    )
     vertical = models.ForeignKey(Vertical, on_delete=models.PROTECT, related_name="listings")
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="listings")
     listing_kind = models.ForeignKey(
@@ -192,6 +200,10 @@ class Listing(models.Model):
                 ),
                 name="listings_price_currency_pair",
             ),
+            models.CheckConstraint(
+                condition=models.Q(intent__in=ListingIntent.values),
+                name="listings_intent_valid",
+            ),
         ]
         indexes = [
             models.Index(fields=("seller", "status"), name="listings_seller_status_idx"),
@@ -204,6 +216,10 @@ class Listing(models.Model):
             ),
             models.Index(fields=("status", "created_at"), name="listings_review_queue_idx"),
             models.Index(fields=("status", "expires_at"), name="listings_expiry_safety_idx"),
+            models.Index(
+                fields=("status", "intent", "state", "-published_at"),
+                name="listings_public_intent_idx",
+            ),
             GinIndex(fields=("search_document",), name="listings_search_document_gin"),
         ]
         ordering = ("-updated_at",)
@@ -222,6 +238,10 @@ class Listing(models.Model):
         if self.vertical_id and self.category.vertical_id != self.vertical_id:
             raise ValidationError(
                 {"category": "The category must belong to the selected vertical."}
+            )
+        if self.intent == ListingIntent.WANTED and self.listing_kind_id is not None:
+            raise ValidationError(
+                {"listing_kind": "Wanted listings cannot use a sale listing kind."}
             )
         if (
             self.listing_kind_id

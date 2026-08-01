@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}{% if editing %}Edit listing{% else %}Create listing{% endif %} | TheCountyPost Market{% endblock %}
+{% block title %}{% if editing %}Edit listing{% elif wanted_create %}Create In Search Of listing{% else %}Create listing{% endif %} | TheCountyPost Market{% endblock %}
 {% block content %}
 <section class="panel listing-form-panel" aria-labelledby="create-listing-title">
   <p class="eyebrow">Seller dashboard</p>
-  <h1 id="create-listing-title">{% if editing %}Edit listing{% else %}Create listing{% endif %}</h1>
+  <h1 id="create-listing-title">{% if editing %}Edit listing{% elif wanted_create %}Create an In Search Of listing{% else %}Create listing{% endif %}</h1>
   <p class="help-text"><span aria-hidden="true">*</span> Required fields. {% if editing %}Your primary category and workflow are fixed for this edit. Changes to published listings return to moderation before becoming public again.{% else %}Choose a vertical, then a postable leaf category to continue.{% endif %}</p>
   <form method="post" novalidate data-unified-listing-form data-category-url="{% url 'listings:generic_categories' %}" data-county-url="{% url 'listings:generic_county_candidates' %}" data-state-url="{% url 'listings:state_candidates' %}">
     {% csrf_token %}
@@ -27,7 +27,7 @@
       {% endif %}
     </fieldset>
     {% if workflow %}
-      <p class="help-text" role="status">Fields for {{ selected_category }} are ready.</p>
+      <p class="help-text" role="status">{% if wanted_create %}Wanted-post fields for {{ selected_category }} are ready.{% else %}Fields for {{ selected_category }} are ready.{% endif %}</p>
       <fieldset>
         <legend>1. Listing and location</legend>
         <div class="generic-form-grid">
@@ -102,7 +102,7 @@
           {% include "listings/_generic_form_field.html" with field=listing_form.street_address full_width=True %}
         </div></details>
       {% endif %}
-      <button type="submit">{% if editing %}Save listing changes{% else %}Save listing draft{% endif %}</button>
+      <button type="submit"{% if not editing %} name="save_listing_draft" value="1"{% endif %}>{% if editing %}Save listing changes{% else %}Save listing draft{% endif %}</button>
     {% endif %}
   </form>
 </section>

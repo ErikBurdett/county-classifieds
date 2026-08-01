@@ -11,6 +11,7 @@ from .models import (
     HomeDetails,
     HomeGoodsDetails,
     Listing,
+    ListingIntent,
     ListingStatus,
     LivestockDetails,
     PastureDetails,
@@ -91,7 +92,17 @@ def _present_public_listing(*, listing: Listing) -> PublicListingPresentation:  
             profile = listing.category.posting_profile
         except AttributeError:
             profile = None
-        facts = [("Price", listing.generic_details.get_price_mode_display())]
+        facts = [
+            (
+                "Budget",
+                (
+                    "Contact with offer"
+                    if listing.intent == ListingIntent.WANTED
+                    and listing.generic_details.price_mode == "contact"
+                    else listing.generic_details.get_price_mode_display()
+                ),
+            )
+        ]
         if profile is not None:
             labels = {
                 field.key: field.label
@@ -104,9 +115,15 @@ def _present_public_listing(*, listing: Listing) -> PublicListingPresentation:  
                 if key in labels and isinstance(value, (str, int, bool))
             )
         return PublicListingPresentation(
-            summary=listing.vertical.name
-            if listing.vertical.slug == "others"
-            else listing.category.name,
+            summary=(
+                f"In Search Of: {listing.category.name}"
+                if listing.intent == ListingIntent.WANTED
+                else (
+                    listing.vertical.name
+                    if listing.vertical.slug == "others"
+                    else listing.category.name
+                )
+            ),
             facts=_public_facts(listing=listing, facts=facts),
             location=base_location,
             map_query=_public_location_query(listing=listing),

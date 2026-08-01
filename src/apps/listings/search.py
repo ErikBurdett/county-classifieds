@@ -33,6 +33,7 @@ def public_search_terms(listing: Listing) -> dict[str, list[str]]:
         "B": [
             listing.category.name,
             listing.vertical.name,
+            "Wanted" if listing.intent == "wanted" else "For sale",
             *(tag.category.name for tag in listing.controlled_tags.all()),
             *(tag.value for tag in listing.seller_tags.all()),
         ],
@@ -138,6 +139,7 @@ def apply_text_search(queryset: QuerySet[Listing], query: str) -> QuerySet[Listi
         )
     return queryset.filter(
         Q(title__icontains=query)
+        | Q(intent__icontains=query)
         | Q(description__icontains=query)
         | Q(city__icontains=query)
         | Q(category__name__icontains=query)

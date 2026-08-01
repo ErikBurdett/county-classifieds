@@ -13,8 +13,8 @@
     {% endif %}
   </nav>
   <section class="browse-hero" aria-labelledby="browse-title">
-    <p class="eyebrow">{% if county %}County market{% else %}State market{% endif %}</p>
-    <h1 id="browse-title">Listings in {% if county %}{{ county.name }}, {% endif %}{{ state.name }}</h1>
+    <p class="eyebrow">{% if in_search_of %}In Search Of{% elif county %}County market{% else %}State market{% endif %}</p>
+    <h1 id="browse-title">{% if in_search_of %}Wanted listings in {% else %}Listings in {% endif %}{% if county %}{{ county.name }}, {% endif %}{{ state.name }}</h1>
     <p>{% if county %}This county route starts with statewide results. Choose “This county” to include listings placed in {{ county.name }} (primary or additional placement).{% else %}Browse public listings statewide or narrow your search to an enabled county-equivalent market.{% endif %}</p>
   </section>
 

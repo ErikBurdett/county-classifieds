@@ -15,6 +15,11 @@ urlpatterns = [
     ),
     path("dashboard/listings/new/", views.create_listing, name="create_listing"),
     path(
+        "dashboard/listings/wanted/new/",
+        views.create_listing,
+        name="create_wanted_listing",
+    ),
+    path(
         "dashboard/listings/generic/new/",
         views.create_generic_draft,
         name="create_generic_draft",
