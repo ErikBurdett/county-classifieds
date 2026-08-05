@@ -1,6 +1,6 @@
 # ADR-0014: Local deterministic billing adapter
 
-**Status:** Accepted  
+**Status:** Superseded in part by ADR-0025
 **Date:** 2026-07-23
 
 ## Context
@@ -15,12 +15,13 @@ Use a DEBUG-only `local_demo` adapter. It creates durable, uniquely identified
 provider-neutral payment events, which are processed by the same idempotent
 handler used by replay. Only a Django staff user may create the deterministic
 local success event. The event validates the immutable order amount/currency
-before marking an order paid and moving the listing to moderation.
+before marking an order paid and publishing the listing after moderator approval.
 
-The local command seeds $10.00 USD and 30 days for `AUTOS_NEW_FIXED`; it is
-explicitly demo configuration rather than production pricing policy. The future
-Stripe adapter will persist `StripeEvent` records using this event contract and
-will add raw-body signature verification without changing order truth rules.
+ADR-0025 replaces the original pre-moderation payment sequence and Autos-only
+demo price. The local command now configures the approved all-catalog
+primary/additional-county demo pricing. The future Stripe adapter will persist
+`StripeEvent` records using this event contract and will add raw-body signature
+verification without changing order truth rules.
 
 ## Consequences
 

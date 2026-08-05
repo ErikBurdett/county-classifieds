@@ -13,7 +13,10 @@
     <button type="submit">{% if listing.status == "changes_requested" %}Resubmit for moderation{% else %}Submit for moderation{% endif %}</button>
   </form>
 {% elif listing.status == "awaiting_payment" %}
-  <p class="help-text">Local demo payment is awaiting staff-recorded confirmation. This listing is not public.</p>
+  <p class="help-text">A moderator approved this listing pending local-demo payment. It is not public until payment is recorded.</p>
+  <form method="post" action="{% url 'billing:checkout' listing.id %}">
+    {% csrf_token %}<button type="submit">Open local demo payment</button>
+  </form>
 {% elif listing.status == "in_review" or listing.status == "submitted" %}
   <p class="help-text">This listing is awaiting moderator review and is not public.</p>
 {% elif listing.status == "published" %}

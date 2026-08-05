@@ -4,12 +4,14 @@ import json
 import re
 import uuid
 from decimal import Decimal
+from typing import Any
 
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVectorField
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
+from django.utils import timezone
 
 from apps.accounts.models import SellerProfile
 from apps.catalog.models import (
@@ -141,6 +143,9 @@ class Listing(models.Model):
     title = models.CharField(max_length=120)
     description = models.TextField()
     broker_name = models.CharField(max_length=120, blank=True)
+    available_for_pickup = models.BooleanField(default=False)
+    delivery_available = models.BooleanField(default=False)
+    shipping_available = models.BooleanField(default=False)
     price_minor = models.PositiveBigIntegerField(null=True, blank=True)
     currency = models.CharField(
         max_length=3, blank=True, validators=[RegexValidator(r"^[A-Z]{3}$")]
@@ -149,6 +154,9 @@ class Listing(models.Model):
         max_length=32, choices=ListingStatus.choices, default=ListingStatus.DRAFT
     )
     published_at = models.DateTimeField(null=True, blank=True)
+    first_published_at = models.DateTimeField(null=True, blank=True)
+    sold_at = models.DateTimeField(null=True, blank=True)
+    sold_public_until = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     last_material_edit_at = models.DateTimeField(null=True, blank=True)
     lifecycle_revision = models.PositiveIntegerField(default=0)
@@ -208,6 +216,10 @@ class Listing(models.Model):
         indexes = [
             models.Index(fields=("seller", "status"), name="listings_seller_status_idx"),
             models.Index(
+                fields=("seller", "status", "sold_public_until"),
+                name="listings_seller_sold_feed_idx",
+            ),
+            models.Index(
                 fields=("status", "state", "county", "category", "-published_at"),
                 name="listings_public_scope_idx",
             ),
@@ -229,6 +241,14 @@ class Listing(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+    def save(self, *args: object, **kwargs: Any) -> None:
+        """Persist the first publication timestamp for every publication writer."""
+        if self.status == ListingStatus.PUBLISHED and self.first_published_at is None:
+            self.first_published_at = self.published_at or timezone.now()
+            if update_fields := kwargs.get("update_fields"):
+                kwargs["update_fields"] = tuple({*update_fields, "first_published_at"})
+        super().save(*args, **kwargs)
 
     def clean(self) -> None:
         super().clean()
@@ -933,8 +953,12 @@ class ModerationActionType(models.TextChoices):
     SUBMITTED = "submitted", "Submitted"
     CLAIMED = "claimed", "Claimed"
     APPROVED = "approved", "Approved"
+    APPROVED_NO_PAYMENT = "approved_no_payment", "Approved without payment"
+    APPROVED_SEND_PAYMENT_LINK = "approved_send_payment_link", "Approved and sent payment link"
     CHANGES_REQUESTED = "changes_requested", "Changes requested"
     REJECTED = "rejected", "Rejected"
+    IMAGE_APPROVED = "image_approved", "Image approved"
+    IMAGE_REJECTED = "image_rejected", "Image rejected"
     ESCALATED = "escalated", "Escalated"
     SUSPENDED = "suspended", "Suspended"
     POLICY_FLAGGED = "policy_flagged", "Policy flagged"
@@ -1094,6 +1118,12 @@ class ListingImageState(models.TextChoices):
     DELETED = "deleted", "Deleted"
 
 
+class ListingImageModerationStatus(models.TextChoices):
+    PENDING = "pending", "Pending review"
+    APPROVED = "approved", "Approved"
+    REJECTED = "rejected", "Rejected"
+
+
 class ListingImage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name="images")
@@ -1105,6 +1135,20 @@ class ListingImage(models.Model):
     ordering = models.PositiveSmallIntegerField()
     state = models.CharField(
         max_length=16, choices=ListingImageState.choices, default=ListingImageState.READY
+    )
+    moderation_status = models.CharField(
+        max_length=16,
+        choices=ListingImageModerationStatus.choices,
+        default=ListingImageModerationStatus.PENDING,
+    )
+    moderation_reason = models.CharField(max_length=500, blank=True)
+    moderated_at = models.DateTimeField(null=True, blank=True)
+    moderated_by = models.ForeignKey(
+        "accounts.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="moderated_listing_images",
     )
     content_type = models.CharField(max_length=32)
     byte_size = models.PositiveIntegerField()

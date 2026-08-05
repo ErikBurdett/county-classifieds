@@ -7,8 +7,9 @@
     <p class="eyebrow">Local demo checkout</p>
     <h1>Order status</h1>
     <p>Order {{ order.id }} is currently {{ order.get_status_display|lower }}.</p>
-    <p>This page does not confirm payment or change your listing status.</p>
+    <p>Payment is confirmed only by the local-demo payment event. Once recorded, the approved listing publishes automatically.</p>
     <p>Amount: {{ order.total_minor }} {{ order.currency }} minor units.</p>
+    <ul>{% for line in order.lines.all %}<li>{{ line.description }}: {{ line.unit_amount_minor }} {{ line.currency }}{% if line.quantity > 1 %} × {{ line.quantity }}{% endif %}</li>{% endfor %}</ul>
     <p><a href="{% url 'listings:dashboard' %}">Return to your dashboard</a></p>
   </section>
 {% endblock %}

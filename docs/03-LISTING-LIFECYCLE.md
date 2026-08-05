@@ -28,9 +28,9 @@ archived
 ```mermaid
 stateDiagram-v2
     [*] --> draft
-    draft --> awaiting_payment: submit paid listing
-    draft --> pending_moderation: submit free listing
-    awaiting_payment --> pending_moderation: verified payment webhook
+    draft --> pending_moderation: submit listing
+    pending_moderation --> awaiting_payment: approve and send payment link
+    awaiting_payment --> active: verified payment
     awaiting_payment --> payment_failed: failed/cancelled payment
     payment_failed --> awaiting_payment: retry checkout
     pending_moderation --> active: approve
@@ -52,9 +52,9 @@ stateDiagram-v2
 
 | Transition | Allowed actor/system |
 |---|---|
-| draft → awaiting_payment | seller through submit service |
-| draft → pending_moderation | seller for free eligible product |
-| awaiting_payment → pending_moderation | Stripe webhook handler only |
+| draft → pending_moderation | seller through submit service |
+| pending_moderation → awaiting_payment | authorized moderator approves payment link |
+| awaiting_payment → active | verified payment handler only |
 | pending_moderation → active/changes_requested/rejected | authorized moderator |
 | changes_requested → pending_moderation | listing owner after validation |
 | active → sold | listing owner or authorized staff |
@@ -84,7 +84,9 @@ The universal “three photos and price” rule must be configurable by listing 
 
 ## Payment boundary
 
-Paid listings are not submitted to moderation based on a browser redirect. Only a verified Stripe webhook can mark the order paid and transition the listing to `pending_moderation`.
+Paid listings are not requested from the seller before moderation. Only a
+verified provider event can mark a moderator-approved payment-pending order paid
+and transition the listing to `active`.
 
 The success page may poll/read order state and display “payment processing” until the webhook is complete.
 
@@ -126,7 +128,7 @@ Provisional policy:
 
 “Sold” is a user-declared close reason, not proof of a completed transaction. It must not unlock ratings until an interaction-eligibility system exists.
 
-Sold listings may remain visible with a sold badge for a configurable period, then archive. Archived listings are hidden from public browse but remain available to the owner and staff according to retention policy.
+Sold listings remain visible with a Sold badge on the seller's public profile for 30 days. They are excluded from global browse and search throughout that period. After it ends they are no longer publicly listed; archived listings remain available only to the owner and staff according to retention policy.
 
 ## Suspension
 

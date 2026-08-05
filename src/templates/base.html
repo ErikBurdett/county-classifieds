@@ -28,6 +28,8 @@
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
     <script src="{% static 'js/live-search.js' %}" defer></script>
     <script src="{% static 'js/navigation.js' %}" defer></script>
+    <script src="{% static 'js/notification-center.js' %}" defer></script>
+    <script src="{% static 'js/ad-carousel.js' %}" defer></script>
   </head>
   <body>
     <div class="page">
@@ -68,6 +70,42 @@
           <a class="market-link" href="https://thecountypost.com">County Post news</a>
           <a class="market-link" href="{% url 'locations:in_search_of' %}">In Search Of</a>
         </nav>
+        {% if user.is_authenticated %}
+          <details class="notification-center" data-notification-center>
+            <summary aria-label="Notifications{% if unread_notification_count %}, {{ unread_notification_count }} unread{% endif %}">
+              <span aria-hidden="true">🔔</span>
+              {% if unread_notification_count %}
+                <span class="notification-center__count" aria-hidden="true">{{ unread_notification_count }}</span>
+                <span class="sr-only">{{ unread_notification_count }} unread notification{{ unread_notification_count|pluralize }}</span>
+              {% endif %}
+            </summary>
+            <section class="notification-center__panel" aria-label="Recent notifications">
+              <h2>Notifications</h2>
+              {% if header_notifications %}
+                <ol class="notification-center__list">
+                  {% for notification in header_notifications %}
+                    <li{% if not notification.read_at %} class="is-unread"{% endif %}>
+                      {% if notification.destination_url %}
+                        <a class="notification-center__item" href="{% url 'notifications:visit' notification.id %}">
+                          <span class="notification-center__title">{{ notification.title }}</span>
+                          <span class="notification-center__body">{{ notification.body }}</span>
+                        </a>
+                      {% else %}
+                        <span class="notification-center__item">
+                          <span class="notification-center__title">{{ notification.title }}</span>
+                          <span class="notification-center__body">{{ notification.body }}</span>
+                        </span>
+                      {% endif %}
+                    </li>
+                  {% endfor %}
+                </ol>
+              {% else %}
+                <p>No notifications yet.</p>
+              {% endif %}
+              <a class="notification-center__feed-link" href="{% url 'notifications:feed' %}">View all notifications</a>
+            </section>
+          </details>
+        {% endif %}
       </header>
       {% if messages %}
         <div class="container message-list" aria-live="polite">
@@ -77,12 +115,14 @@
         </div>
       {% endif %}
       <main id="main-content" class="container" tabindex="-1">{% block content %}{% endblock %}</main>
+      {% include "advertising/_slot.html" with ads=footer_banner_ads slot="banner" %}
       <footer class="site-footer">
         <p><strong>The County Post</strong> <span aria-hidden="true">·</span> Market</p>
         <p>Regional listings reviewed before publication.</p>
         <nav aria-label="Footer navigation">
           <a href="{% url 'core:home' %}">Market home</a>
           <a href="{% url 'locations:market_finder' %}">Find a market</a>
+          <a href="{% url 'advertising:partners' %}">Partners</a>
         </nav>
       </footer>
     </div>

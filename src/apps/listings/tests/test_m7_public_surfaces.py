@@ -12,18 +12,23 @@ from django.test import Client
 from django.test.utils import override_settings
 from django.utils import timezone
 
-from apps.accounts.models import SellerProfile, User
+from apps.accounts.models import AccountStatus, SellerProfile, User
 from apps.catalog.models import Category, Vertical
 from apps.listings.models import (
     Listing,
     ListingImage,
+    ListingImageModerationStatus,
     ListingImageState,
     ListingStatus,
     UploadSession,
 )
 from apps.listings.presenters import present_public_listing
 from apps.listings.search import public_search_terms
-from apps.listings.selectors import public_listing_for_location, public_listing_with_images
+from apps.listings.selectors import (
+    public_listing_for_location,
+    public_listing_with_images,
+    public_seller_feed_listings,
+)
 from apps.listings.services import (
     create_auto_draft,
     publish_auto_listing,
@@ -162,6 +167,68 @@ def test_expired_public_status_is_hidden_before_scheduler_runs(public_auto: List
     assert not public_listing_with_images().filter(pk=public_auto.pk).exists()
 
 
+def test_seller_feed_includes_recent_sold_listings_and_respects_visibility_requirements(
+    public_auto: Listing,
+) -> None:
+    first_published_at = public_auto.first_published_at
+
+    sold = transition_owned_listing(
+        listing_id=public_auto.id,
+        seller=public_auto.seller,
+        action="sold",
+    )
+
+    assert sold.sold_at is not None
+    assert sold.sold_public_until == sold.sold_at + timedelta(days=30)
+    assert sold.first_published_at == first_published_at
+    assert list(public_seller_feed_listings(seller=public_auto.seller)) == [sold]
+    assert not public_listing_with_images().filter(pk=sold.pk).exists()
+
+    sold.sold_public_until = timezone.now() - timedelta(seconds=1)
+    sold.save(update_fields=("sold_public_until",))
+    assert not public_seller_feed_listings(seller=public_auto.seller).exists()
+
+    sold.sold_public_until = timezone.now() + timedelta(days=1)
+    sold.save(update_fields=("sold_public_until",))
+    seller_user = public_auto.seller.user
+    seller_user.account_status = AccountStatus.SUSPENDED
+    seller_user.is_active = False
+    seller_user.save(update_fields=("account_status", "is_active"))
+    assert not public_seller_feed_listings(seller=public_auto.seller).exists()
+
+
+def test_sold_listing_retention_cleanup_is_idempotent(public_auto: Listing) -> None:
+    sold = transition_owned_listing(
+        listing_id=public_auto.id,
+        seller=public_auto.seller,
+        action="sold",
+    )
+    sold.sold_public_until = timezone.now() - timedelta(seconds=1)
+    sold.save(update_fields=("sold_public_until",))
+
+    call_command("clear_expired_sold_publication")
+    call_command("clear_expired_sold_publication")
+    sold.refresh_from_db()
+
+    assert sold.sold_public_until is None
+
+
+def test_first_publication_timestamp_is_retained_after_republication(public_auto: Listing) -> None:
+    first_published_at = public_auto.first_published_at
+    transition_owned_listing(listing_id=public_auto.id, seller=public_auto.seller, action="sold")
+    transition_owned_listing(listing_id=public_auto.id, seller=public_auto.seller, action="archive")
+    transition_owned_listing(
+        listing_id=public_auto.id,
+        seller=public_auto.seller,
+        action="restore_draft",
+    )
+
+    republished = publish_auto_listing(listing_id=public_auto.id)
+
+    assert republished.published_at is not None
+    assert republished.first_published_at == first_published_at
+
+
 def test_favorites_and_owner_lifecycle_never_bypass_public_visibility(public_auto: Listing) -> None:
     viewer = User.objects.create_user(email="viewer@example.test", password="not-used")
 
@@ -218,6 +285,7 @@ def test_public_selector_returns_only_ready_images_and_generic_404(public_auto: 
         upload_session=ready_upload,
         ordering=1,
         state=ListingImageState.READY,
+        moderation_status=ListingImageModerationStatus.APPROVED,
         content_type="image/jpeg",
         byte_size=1,
         width=1,
@@ -305,6 +373,7 @@ def test_public_listing_social_image_uses_processed_rendition_with_stable_layout
         upload_session=upload,
         ordering=0,
         state=ListingImageState.READY,
+        moderation_status=ListingImageModerationStatus.APPROVED,
         content_type="image/jpeg",
         byte_size=1,
         width=640,

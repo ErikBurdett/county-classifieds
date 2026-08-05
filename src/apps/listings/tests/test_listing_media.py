@@ -15,9 +15,11 @@ from PIL import Image
 from apps.accounts.models import SellerProfile, User
 from apps.catalog.models import Category, ListingKind, Vertical
 from apps.listings.models import (
+    GenericListingDetails,
     Listing,
     ListingImage,
     ListingImageState,
+    ListingIntent,
     ListingMediaPolicy,
     UploadSessionState,
 )
@@ -81,6 +83,44 @@ def test_finalized_image_is_reencoded_without_exif(draft: tuple[Listing, SellerP
     assert image.original_filename == "hostile-name.jpg"
     assert image.width == 20
     assert image.upload_session.state == UploadSessionState.FINALIZED
+
+
+def test_upload_locks_only_non_nullable_listing_relations(
+    draft: tuple[Listing, SellerProfile],
+) -> None:
+    """A nullable listing kind must not be joined into a FOR UPDATE query.
+
+    SQLite exercises the normal path; PostgreSQL exercises the locking regression.
+    """
+    listing, seller = draft
+
+    session = begin_image_upload(
+        listing_id=listing.id,
+        seller=seller,
+        original_filename="postgresql-safe.jpg",
+    )
+    image = finalize_image_upload(
+        session_id=session.id,
+        seller=seller,
+        uploaded_file=image_upload(),
+    )
+
+    assert image.listing_id == listing.id
+
+
+def test_wanted_listing_uses_the_shared_media_workflow(
+    draft: tuple[Listing, SellerProfile],
+) -> None:
+    listing, seller = draft
+    listing.intent = ListingIntent.WANTED
+    listing.listing_kind = None
+    listing.save(update_fields=("intent", "listing_kind"))
+    GenericListingDetails.objects.create(listing=listing, price_mode="contact", postal_code="79101")
+
+    image = upload_image(listing, seller)
+
+    assert image.listing_id == listing.id
+    assert image.state == ListingImageState.READY
 
 
 def test_rejects_corrupt_wrong_type_and_dimension_guards(

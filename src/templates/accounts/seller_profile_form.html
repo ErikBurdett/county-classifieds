@@ -7,10 +7,16 @@
     <p class="eyebrow">Seller setup</p>
     <h1 id="profile-title">Your seller profile</h1>
     <p>Set the name displayed with your future listings. Phone verification is not part of this draft-only workflow.</p>
+    <p>Public biography and links are submitted for staff review. Your displayed seller name is updated separately.</p>
+    {% if approved_revision %}
+      <p>Your current public profile revision was approved {{ approved_revision.reviewed_at|date:"N j, Y" }}.</p>
+    {% else %}
+      <p>No public profile revision has been approved yet.</p>
+    {% endif %}
     {% if form.errors %}
       <div class="error-summary" role="alert">Please correct the fields below.</div>
     {% endif %}
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
       {% for field in form %}
         <div class="form-field">
@@ -20,7 +26,7 @@
           {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
         </div>
       {% endfor %}
-      <button type="submit">Save seller profile</button>
+      <button type="submit">Submit profile revision</button>
     </form>
   </section>
 {% endblock %}

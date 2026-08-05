@@ -17,7 +17,18 @@ from apps.catalog.models import (
 )
 from apps.catalog.services import ProductSelection, resolve_eligible_product_price
 from apps.core.outbox import enqueue_event
-from apps.listings.models import Listing, ListingStatus, ModerationAction, ModerationActionType
+from apps.listings.models import (
+    Listing,
+    ListingImage,
+    ListingImageModerationStatus,
+    ListingImageState,
+    ListingIntent,
+    ListingMediaPolicy,
+    ListingStatus,
+    ModerationAction,
+    ModerationActionType,
+)
+from apps.listings.search import rebuild_public_search_document
 
 from .models import Order, OrderLine, OrderPurpose, OrderStatus, PaymentEvent, PaymentEventStatus
 
@@ -59,19 +70,19 @@ def _generic_price(*, product_code: str) -> tuple[ListingProduct, ProductPrice]:
 
 @transaction.atomic
 def create_generic_distribution_quote(*, listing_id: UUID, seller_id: int) -> CheckoutOrder:
-    """Snapshot the $10/$5 local-demo placement quote; it never grants payment state."""
+    """Snapshot the server-priced $10/$5 local-demo placement checkout for any listing."""
 
     listing = (
         Listing.objects.select_for_update()
-        .select_related("seller__user", "generic_details")
+        .select_related("seller__user")
         .prefetch_related("additional_counties")
         .get(pk=listing_id)
     )
     if listing.seller_id != seller_id:
         raise PermissionDenied("Only the listing owner may create a quote.")
     require_active_account(user=listing.seller.user)
-    if not hasattr(listing, "generic_details"):
-        raise BillingError("This listing is not a generic listing.")
+    if listing.status != ListingStatus.AWAITING_PAYMENT:
+        raise BillingError("This listing is not eligible for checkout.")
     existing = Order.objects.filter(
         listing=listing,
         seller_id=seller_id,
@@ -98,7 +109,7 @@ def create_generic_distribution_quote(*, listing_id: UUID, seller_id: int) -> Ch
         order=order,
         product=primary_product,
         product_code=primary_product.product_code,
-        description="Generic listing primary county placement (local demo)",
+        description="Primary county listing placement (local demo)",
         unit_amount_minor=primary_price.amount_minor,
         currency="USD",
         quantity=1,
@@ -109,7 +120,7 @@ def create_generic_distribution_quote(*, listing_id: UUID, seller_id: int) -> Ch
             order=order,
             product=additional_product,
             product_code=additional_product.product_code,
-            description="Generic listing additional county placement (local demo)",
+            description="Additional county listing placement (local demo)",
             unit_amount_minor=additional_price.amount_minor,
             currency="USD",
             quantity=additional_count,
@@ -150,7 +161,7 @@ def create_checkout_order(
     """Create one immutable local-demo order from server-resolved catalog data."""
     listing = (
         Listing.objects.select_for_update()
-        .select_related("seller__user", "listing_kind", "vertical")
+        .select_related("seller__user", "vertical")
         .get(pk=listing_id)
     )
     if listing.seller_id != seller_id:
@@ -163,6 +174,8 @@ def create_checkout_order(
     )
     if listing.status not in allowed_status:
         raise BillingError("This listing is not eligible for checkout.")
+    if purpose == OrderPurpose.NEW_LISTING:
+        return create_generic_distribution_quote(listing_id=listing_id, seller_id=seller_id)
     existing = Order.objects.filter(
         listing=listing,
         seller_id=seller_id,
@@ -226,7 +239,7 @@ def create_renewal_order(*, listing_id: UUID, seller_id: int) -> CheckoutOrder:
 
 
 @transaction.atomic
-def process_payment_event(*, event_id: UUID) -> PaymentEvent:
+def process_payment_event(*, event_id: UUID) -> PaymentEvent:  # noqa: PLR0912, PLR0915
     """Process one durable event safely under replay, duplicates, and disorder."""
     event = (
         PaymentEvent.objects.select_for_update().select_related("order__listing").get(pk=event_id)
@@ -270,24 +283,70 @@ def process_payment_event(*, event_id: UUID) -> PaymentEvent:
             event.failure_reason = "Listing is not awaiting payment."
         else:
             now = timezone.now()
+            required_count, _maximum_count = _image_policy_for_listing(listing=listing)
+            approved_count = ListingImage.objects.filter(
+                listing=listing,
+                state=ListingImageState.READY,
+                moderation_status=ListingImageModerationStatus.APPROVED,
+            ).count()
+            if approved_count < required_count:
+                event.status = PaymentEventStatus.FAILED
+                event.failure_reason = "Listing does not have the required approved images."
+                event.processed_at = timezone.now()
+                event.save(update_fields=("status", "failure_reason", "processed_at"))
+                return event
             order.status = OrderStatus.PAID
             order.paid_at = now
             order.save(update_fields=("status", "paid_at", "updated_at"))
             previous = listing.status
-            listing.status = ListingStatus.IN_REVIEW
+            listing.status = ListingStatus.PUBLISHED
+            listing.published_at = now
+            if listing.intent != ListingIntent.WANTED:
+                line = order.lines.order_by("created_at").first()
+                if line is not None:
+                    listing.expires_at = now + timedelta(days=line.duration_days)
             listing.lifecycle_revision += 1
-            listing.save(update_fields=("status", "lifecycle_revision", "updated_at"))
+            listing.save(
+                update_fields=(
+                    "status",
+                    "published_at",
+                    "expires_at",
+                    "lifecycle_revision",
+                    "updated_at",
+                )
+            )
+            rebuild_public_search_document(listing=listing)
             ModerationAction.objects.create(
                 listing=listing,
                 actor=None,
-                action_type=ModerationActionType.SUBMITTED,
+                action_type=ModerationActionType.APPROVED,
                 from_status=previous,
-                to_status=ListingStatus.IN_REVIEW,
+                to_status=ListingStatus.PUBLISHED,
+            )
+            from apps.notifications.services import create_notification  # noqa: PLC0415
+
+            create_notification(
+                recipient=listing.seller.user,
+                event_type="listing.payment_completed",
+                title="Payment complete — listing published",
+                body="Your local-demo payment was confirmed and your listing is now published.",
+                idempotency_key=f"listing.payment_completed:{listing.id}:{listing.lifecycle_revision}",
+                destination_route="listings:owner_listing_detail",
+                destination_kwargs={"listing_id": str(listing.id)},
             )
             event.status = PaymentEventStatus.PROCESSED
     event.processed_at = timezone.now()
     event.save(update_fields=("status", "failure_reason", "processed_at"))
     return event
+
+
+def _image_policy_for_listing(*, listing: Listing) -> tuple[int, int]:
+    policy = ListingMediaPolicy.objects.filter(category_id=listing.category_id).first()
+    if policy is None and listing.listing_kind_id:
+        policy = ListingMediaPolicy.objects.filter(listing_kind_id=listing.listing_kind_id).first()
+    if policy is None:
+        return 0, 12
+    return policy.required_image_count, policy.maximum_image_count
 
 
 def _apply_paid_renewal(*, listing: Listing, order: Order) -> None:

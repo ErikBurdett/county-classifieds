@@ -2,6 +2,30 @@
 
 ## Latest recorded application verification
 
+**Public seller profiles, fulfillment availability, sold retention, and
+advertising (2026-08-04):** applied `accounts.0004`/`0005` and
+`listings.0021`/`0022` successfully to local PostgreSQL. `make check` passed:
+Ruff formatting/linting, mypy (184 source files), Django and migration checks,
+320 non-browser tests passed, 6 PostgreSQL-only tests skipped, 26 browser tests
+deselected, and 85.36% coverage. `make test-e2e` passed: 26 Chromium tests.
+The verification covers public-profile privacy, moderated revisions, seller-feed
+sold retention, static sponsor placements, and responsive in-feed ads. It does
+not represent production advertising, payment, profile-media, or provider
+operations.
+
+**Moderation/payment/image review/notifications (2026-08-03):** inspected the
+additive `listings.0020` and `notifications.0001` migration SQL, then applied
+both successfully to the local PostgreSQL database. `listings.0020` adds
+per-image moderation data and explicitly backfills existing ready images as
+approved; `notifications.0001` creates recipient/read-state indexes and a
+unique event idempotency key. `make check` passed: formatting, lint, mypy (171
+source files), Django and migration checks, 303 non-browser tests passed, 6
+PostgreSQL-only tests skipped, 24 browser tests deselected, and 85.32% coverage.
+`make test-e2e` passed: 24 Chromium tests, including mobile notification
+navigation, the explicit no-payment moderation action, and no-horizontal-
+overflow assertions. The local adapter is DEBUG-only; no Stripe SDK, webhook,
+or production payment policy was introduced.
+
 **LST-011 In Search Of/Wanted listings (2026-07-31):** inspected
 `sqlmigrate listings 0019` (additive non-null `intent` with `offer` database
 default, intent check constraint, and intentional public intent/state index),

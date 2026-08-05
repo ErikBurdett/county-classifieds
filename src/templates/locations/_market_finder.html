@@ -4,6 +4,7 @@
     <h2 id="market-finder-title">Find your market</h2>
     <p class="market-finder-copy">Search every active Census state and county. Markets with no listings are still available to visit.</p>
   </div>
+  {% include "advertising/_compact_sponsor.html" with sponsor=market_finder_sponsor_ad %}
   <form class="market-finder-form" method="get" action="{% url 'locations:market_finder' %}" data-live-search="market">
     {% if location_finder_form.non_field_errors %}
       <div class="error-summary" role="alert">{{ location_finder_form.non_field_errors }}</div>

@@ -28,7 +28,7 @@ Do not bury these choices in code. Resolve P0 items before the dependent milesto
 | DEC-105 | VIN handling | Store restricted; never public; define encryption/support visibility | Autos/security |
 | DEC-106 | Renewal grace and re-moderation | **Accepted 2026-07-23:** One unchanged renewal paid within seven days after expiration bypasses full moderation; material edits always require review. See ADR-0015. | Renewal |
 | DEC-107 | Featured start/refund during moderation or suspension | Starts on activation; paused/refund behavior defined in terms | Billing |
-| DEC-108 | Sold listing public retention | Display sold badge for a short configurable period, then archive | Listing lifecycle |
+| DEC-108 | Sold listing public retention | **Accepted 2026-08-04:** Sold listings remain visible only on their seller's public profile for 30 days, with a Sold badge. They remain excluded from global browse and search; after retention they are not publicly listed. | Listing lifecycle |
 | DEC-109 | Report-a-listing launch mechanism | **Accepted 2026-07-23:** Anonymous monitored in-product reports for presently public listings, with optional authenticated reporter/private email, staff-only triage, no automatic listing action, and a separate pending retention decision. See `features/RPT-001-public-listing-reports.md`. | Trust |
 | DEC-110 | Exact email reminder schedule | Configure from product policy and measure fatigue | Notifications |
 | DEC-111 | Staff MFA implementation | Approved MFA package or external identity/access layer | Security |
@@ -41,6 +41,19 @@ Do not bury these choices in code. Resolve P0 items before the dependent milesto
   2026-07-31.** Wanted listings honor the current media requirement of their
   target category and have no expiration until a later accepted policy changes
   that behavior. See ADR-0024 and LST-011.
+- **DEC-116 — Local moderation/payment sequence and demo placement price:**
+  **Accepted 2026-08-03.** Every listing is moderated before any local payment
+  request. Moderators may publish without payment or send a local payment link;
+  a confirmed local payment publishes the approved listing. The DEBUG-only
+  amount is $10 for the primary county plus $5 per additional county across all
+  verticals, categories, and Wanted listings. Production Stripe pricing remains
+  unresolved. See ADR-0025.
+- **DEC-117 — Initial marketplace sponsored-ad workflow:** **Accepted
+  2026-08-03.** Mirror County Post's deployment-managed static creative catalog
+  and partner directory. Creatives are reviewed and copied into marketplace
+  static assets; no self-service sales, tracking, targeting, or billing is
+  introduced. External partner links open with `noopener`, `noreferrer`, and
+  `sponsored`. See ADV-001.
 
 ## P2 — Phase 1B/later
 

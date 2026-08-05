@@ -12,6 +12,7 @@ from django.urls import reverse
 from django.utils.cache import patch_vary_headers
 from django.views.decorators.http import require_GET
 
+from apps.advertising.selectors import ads_for_slot, sponsor_for_scope
 from apps.listings.models import ListingImage, ListingImageState
 from apps.listings.presenters import present_public_listing
 from apps.listings.selectors import (
@@ -192,6 +193,8 @@ def state_context(request: HttpRequest, state_slug: str) -> HttpResponse:
     context.update(
         {
             "location_finder_form": PublicMarketFinderForm(),
+            "inline_ads": ads_for_slot(slot="inline", limit=8),
+            "listing_ads": ads_for_slot(slot="inline", limit=3),
             "counties": state.counties.filter(is_active=True, is_network_enabled=True).annotate(
                 public_listing_count=Count(
                     "listings",
@@ -232,6 +235,8 @@ def in_search_of(request: HttpRequest, state_slug: str | None = None) -> HttpRes
             "in_search_of": True,
             "location_finder_form": PublicMarketFinderForm(),
             "seo_metadata": directory_metadata(request=request, state=state),
+            "inline_ads": ads_for_slot(slot="inline", limit=8),
+            "listing_ads": ads_for_slot(slot="inline", limit=3),
         }
     )
     return _browse_response(request=request, context=context)
@@ -260,6 +265,9 @@ def county_context(request: HttpRequest, state_slug: str, county_slug: str) -> H
         )
     context = _browse_context(request=request, state=county.state, county=county)
     context["location_finder_form"] = PublicMarketFinderForm()
+    context["inline_ads"] = ads_for_slot(slot="inline", limit=8)
+    context["listing_ads"] = ads_for_slot(slot="inline", limit=3)
+    context["county_sponsor_ad"] = sponsor_for_scope(scope=county.fips)
     return _browse_response(request=request, context=context)
 
 

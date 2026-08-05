@@ -81,6 +81,14 @@ def _public_facts(*, listing: Listing, facts: list[tuple[str, str]]) -> tuple[tu
         and broker_attribution_is_eligible(vertical=listing.vertical, category=listing.category)
     ):
         facts.append(("Broker or brokerage", listing.broker_name))
+    availability = (
+        ("Pickup", listing.available_for_pickup),
+        ("Delivery", listing.delivery_available),
+        ("Shipping", listing.shipping_available),
+    )
+    available_methods = [label for label, is_available in availability if is_available]
+    if available_methods:
+        facts.append(("Availability", ", ".join(available_methods)))
     return tuple(facts)
 
 

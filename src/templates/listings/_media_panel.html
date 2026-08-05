@@ -1,6 +1,6 @@
 <section class="panel" aria-labelledby="media-heading">
-  <h2 id="media-heading">Private draft images</h2>
-  <p>Images are visible only to you while this listing is a draft. {{ images|length }} of {{ maximum_image_count }} uploaded.{% if required_image_count %} This kind requires {{ required_image_count }} image{{ required_image_count|pluralize }} before future submission.{% endif %}</p>
+  <h2 id="media-heading">Listing images</h2>
+  <p>{{ images|length }} of {{ maximum_image_count }} uploaded. Images are private while this listing is draft or in review.{% if listing.status == "published" %} Adding, deleting, or reordering an image will return it to moderation.{% endif %}{% if required_image_count %} This category requires {{ required_image_count }} image{{ required_image_count|pluralize }} before submission.{% endif %}</p>
   {% if messages %}
     <div role="alert">
       {% for message in messages %}<p>{{ message }}</p>{% endfor %}
@@ -19,6 +19,7 @@
       {% for image in images %}
         <li>
           <img src="{% url 'listings:private_listing_image' listing.id image.id 'preview' %}" alt="Private image {{ forloop.counter }}" width="320" height="320">
+          <p>Review status: {{ image.get_moderation_status_display }}.{% if image.moderation_status == "rejected" %} Reason: {{ image.moderation_reason }}{% endif %}</p>
           <input form="reorder-images" name="image_id" type="hidden" value="{{ image.id }}">
           <label for="order-{{ image.id }}">Position</label>
           <input form="reorder-images" id="order-{{ image.id }}" name="order" type="number" min="1" max="{{ images|length }}" value="{{ forloop.counter }}">

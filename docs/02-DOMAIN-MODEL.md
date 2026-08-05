@@ -31,13 +31,18 @@ Do not use phone number as the primary identifier. Phone numbers change and may 
 ### `SellerProfile`
 
 - one-to-one user
+- immutable UUID public identifier
 - public display name
-- optional public profile image reference
 - member-since derived from creation date
-- seller status
-- optional business name/type for future compatibility
-- public-location preference
-- moderation/support notes stored separately from public fields
+- nullable pointer to one approved public-content revision
+- private phone and verification state
+
+### `SellerProfileRevision`
+
+- seller profile, pending/approved/rejected state, reviewer/note/time
+- optional avatar plus bio
+- optional HTTPS website, Facebook, Instagram, X, LinkedIn, and YouTube links
+- only the profile's currently approved revision is public
 
 ### `PhoneVerification`
 
@@ -131,6 +136,8 @@ Shared fields:
 - moderation state/reason summary
 - public slug
 - published, expires, sold, archived timestamps
+- first-publication, sold, and seller-profile sold-retention timestamps
+- independent pickup, delivery, and shipping availability declarations
 - draft-completeness and version number
 - optional public general-area text
 - created/updated timestamps

@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "apps.core",
+    "apps.advertising",
     "apps.accounts",
     "apps.locations",
     "apps.catalog",
@@ -30,6 +31,7 @@ INSTALLED_APPS = [
     "apps.policies",
     "apps.management_console",
     "apps.reports",
+    "apps.notifications",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -56,6 +58,8 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "apps.advertising.context_processors.advertising_slots",
+                "apps.notifications.context_processors.notification_center",
             ]
         },
     }
@@ -86,7 +90,10 @@ TIME_ZONE = "America/Chicago"
 USE_I18N = True
 USE_TZ = True
 STATIC_URL = "/static/"
-STATICFILES_DIRS = [BASE_DIR / "static"]
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+    ("ad-assets", PROJECT_ROOT / "ad-assets"),
+]
 STATIC_ROOT = PROJECT_ROOT / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = PROJECT_ROOT / "media"

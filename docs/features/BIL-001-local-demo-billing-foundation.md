@@ -10,11 +10,12 @@ M6 needs durable, server-priced orders and payment events without accepting a re
 provider credential or production pricing policy. This slice supplies a
 provider-neutral billing boundary with a deterministic local adapter only.
 
-The local demo flow is available only with `DEBUG=True`: an eligible seller
-submits an Autos fixed-price draft, which becomes `awaiting_payment`; checkout
-creates a server-priced order; a staff-only local confirmation creates a durable
-event; event processing marks the order paid and moves the listing to
-`in_review`. Browser success and cancellation pages are informational only.
+The local demo flow is available only with `DEBUG=True`. Every listing first
+enters moderation. A moderator may approve a listing for payment, which moves
+it to `awaiting_payment` and makes the server-owned local checkout action
+available. A staff-only local confirmation creates a durable event; event
+processing marks the order paid and publishes the already-approved listing.
+Browser success and cancellation pages are informational only.
 
 ## Non-goals
 
@@ -23,15 +24,17 @@ browse behavior, production fee, or production checkout is included. A staff
 rejection of a paid local-demo listing creates one durable, idempotent full
 refund event through the local adapter; production refunds still require the
 future provider adapter.
-The local $10.00 USD / 30-day configuration is demo data, not a production
-pricing decision.
+The local $10.00 USD primary-county plus $5.00 per additional county
+configuration applies to every vertical, category, and In Search Of listing.
+It is demo data, not a production pricing decision.
 
 ## Actors, data, and security
 
-Sellers may create checkout only for their own `awaiting_payment` listing.
-The server resolves `AUTOS_NEW_FIXED` and its effective `ProductPrice`; forms
-accept no amount, currency, or product identity. Orders and order lines retain
-immutable money/product/duration snapshots. `PaymentEvent` has a unique
+Sellers may create checkout only for their own moderator-approved
+`awaiting_payment` listing. The server resolves the local distribution products
+and effective prices; forms accept no amount, currency, or product identity.
+Orders and order lines retain immutable money/product/duration snapshots.
+`PaymentEvent` has a unique
 `(provider, provider_event_id)` and is the compatible future replacement shape
 for `StripeEvent`. Staff-only DEBUG confirmation is CSRF-protected and cannot
 be invoked by a seller.
@@ -44,7 +47,7 @@ blocks any activation/start policy.
 Apply `catalog.0006`, `listings.0010`, and `billing.0001`. In local DEBUG only,
 run `python src/manage.py seed_texas_autos` then
 `python src/manage.py seed_demo_billing`. The latter is idempotent and creates
-the 1000-minor-unit USD row only after validating the Autos listing kind/mode.
+the local distribution price rows. It does not contact a provider.
 
 Replay received/failed events with `python src/manage.py replay_payment_events`.
 Disable local checkout by running non-DEBUG configuration; existing orders/events

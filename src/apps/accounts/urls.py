@@ -12,6 +12,16 @@ urlpatterns = [
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("register/", views.register, name="register"),
     path("seller-profile/", views.seller_profile, name="seller_profile"),
+    path(
+        "sellers/<uuid:public_id>/",
+        views.public_seller_profile_view,
+        name="public_seller_profile",
+    ),
+    path(
+        "sellers/<uuid:public_id>/avatar/",
+        views.public_seller_avatar,
+        name="public_seller_avatar",
+    ),
     path("password-reset/", views.MarketplacePasswordResetView.as_view(), name="password_reset"),
     path(
         "password-reset/done/",

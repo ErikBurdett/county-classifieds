@@ -340,6 +340,9 @@ class GenericListingForm(forms.ModelForm):  # type: ignore[type-arg]
             "title",
             "description",
             "broker_name",
+            "available_for_pickup",
+            "delivery_available",
+            "shipping_available",
         )
         widgets: ClassVar[dict[str, forms.Widget]] = {
             "description": forms.Textarea(attrs={"rows": 6}),
@@ -492,6 +495,9 @@ class AutoListingForm(forms.ModelForm):  # type: ignore[type-arg]
             "city",
             "title",
             "description",
+            "available_for_pickup",
+            "delivery_available",
+            "shipping_available",
             "price_minor",
             "currency",
         )
@@ -545,6 +551,9 @@ class PropertyListingForm(forms.ModelForm):  # type: ignore[type-arg]
             "title",
             "description",
             "broker_name",
+            "available_for_pickup",
+            "delivery_available",
+            "shipping_available",
             "price_minor",
             "currency",
         )

@@ -2,17 +2,22 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+from collections.abc import Mapping
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
+from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 from django.http import HttpRequest
+from django.utils import timezone
 
 from .models import (
     AccountSecurityEvent,
     AccountSecurityEventType,
     AccountStatus,
     SellerProfile,
+    SellerProfileRevision,
+    SellerProfileRevisionStatus,
     User,
 )
 
@@ -57,6 +62,70 @@ def register_seller(*, email: str, display_name: str, password: str) -> User:
     user = User.objects.create_user(email=email, password=password)
     SellerProfile.objects.create(user=user, display_name=display_name)
     return user
+
+
+@transaction.atomic
+def submit_seller_profile_revision(
+    *,
+    user: User,
+    display_name: str,
+    phone: str,
+    content: Mapping[str, str],
+    avatar: UploadedFile | None = None,
+) -> SellerProfileRevision:
+    """Update private attribution details and submit public profile content for review."""
+    require_active_account(user=user)
+    profile, _ = SellerProfile.objects.select_for_update().get_or_create(
+        user=user,
+        defaults={"display_name": display_name, "phone": phone},
+    )
+    if profile.display_name != display_name or profile.phone != phone:
+        profile.display_name = display_name
+        profile.phone = phone
+        profile.save(update_fields=("display_name", "phone", "updated_at"))
+    revision = SellerProfileRevision(seller_profile=profile, avatar=avatar, **dict(content))
+    revision.full_clean()
+    revision.save()
+    return revision
+
+
+@transaction.atomic
+def review_seller_profile_revision(
+    *,
+    revision_id: int,
+    reviewer: User,
+    status: SellerProfileRevisionStatus,
+    note: str,
+) -> SellerProfileRevision:
+    """Record a staff review and point the seller profile at approved public content."""
+    if status not in {
+        SellerProfileRevisionStatus.APPROVED,
+        SellerProfileRevisionStatus.REJECTED,
+    }:
+        raise ValueError("Seller profile revisions may only be approved or rejected.")
+    if not reviewer.is_staff or not (
+        reviewer.is_superuser or reviewer.has_perm("accounts.change_sellerprofilerevision")
+    ):
+        raise PermissionDenied("You do not have permission to review seller profile revisions.")
+
+    revision = (
+        SellerProfileRevision.objects.select_for_update()
+        .select_related("seller_profile")
+        .get(pk=revision_id)
+    )
+    if revision.status != SellerProfileRevisionStatus.PENDING:
+        raise ValueError("Only pending seller profile revisions may be reviewed.")
+
+    revision.status = status
+    revision.reviewer = reviewer
+    revision.review_note = note
+    revision.reviewed_at = timezone.now()
+    revision.save(update_fields=("status", "reviewer", "review_note", "reviewed_at"))
+    if status == SellerProfileRevisionStatus.APPROVED:
+        profile = SellerProfile.objects.select_for_update().get(pk=revision.seller_profile_id)
+        profile.current_approved_revision = revision
+        profile.save(update_fields=("current_approved_revision", "updated_at"))
+    return revision
 
 
 @transaction.atomic

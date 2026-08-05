@@ -66,7 +66,10 @@ A moderator opening a row does not permanently lock it. State-changing actions u
 
 ### Approve
 
-- validate listing is still in `pending_moderation`
+- validate listing is still in `in_review`
+- approve without payment or approve and send the DEBUG-only local payment link
+- review each pending image; only approved images may become public and
+  category image-minimum policy gates positive outcomes
 - record moderator and action
 - set publication/expiration entitlement
 - emit notification and indexing events

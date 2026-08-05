@@ -13,6 +13,15 @@ foundation, not a production launch.
 - Private typed drafts, generic media, moderation/lifecycle, local deterministic
   billing/refunds, outbox operations, public browse/detail/media, M10 SEO/UI
   foundations, M11 Terraform/runbooks, and M12 staff console/policy foundations.
+- Moderation precedes the optional DEBUG-only payment link; stored listing images
+  receive individual review decisions, and sellers receive durable in-app
+  notifications.
+- Static sponsored ads/partner directory, listing pickup/delivery/shipping
+  availability, and responsive in-feed sponsored placements are implemented for
+  the local demo.
+- Public seller profiles use immutable UUID URLs, staff-approved bios/social
+  links/avatars, seller attribution on public listings, and a 30-day
+  seller-profile-only sold-listing retention window.
 - In Search Of/Wanted listings use an additive listing intent and retain their
   target vertical/category; see `docs/features/LST-011-in-search-of-wanted-listings.md`.
 - No production Stripe, SES, AWS, DNS, ACM, legal approval, staging rehearsal,

@@ -6,7 +6,7 @@
   <p class="eyebrow">Seller dashboard</p>
   <h1 id="create-listing-title">{% if editing %}Edit listing{% elif wanted_create %}Create an In Search Of listing{% else %}Create listing{% endif %}</h1>
   <p class="help-text"><span aria-hidden="true">*</span> Required fields. {% if editing %}Your primary category and workflow are fixed for this edit. Changes to published listings return to moderation before becoming public again.{% else %}Choose a vertical, then a postable leaf category to continue.{% endif %}</p>
-  <form method="post" novalidate data-unified-listing-form data-category-url="{% url 'listings:generic_categories' %}" data-county-url="{% url 'listings:generic_county_candidates' %}" data-state-url="{% url 'listings:state_candidates' %}">
+  <form method="post" enctype="multipart/form-data" novalidate data-unified-listing-form data-category-url="{% url 'listings:generic_categories' %}" data-county-url="{% url 'listings:generic_county_candidates' %}" data-state-url="{% url 'listings:state_candidates' %}">
     {% csrf_token %}
     {% if workflow.typed %}<input type="hidden" name="typed_workflow" value="1">{% endif %}
     {% if category_form.errors or listing_form.errors or details_form.errors or profile_form.errors or taxonomy_form.errors %}
@@ -102,6 +102,12 @@
           {% include "listings/_generic_form_field.html" with field=listing_form.street_address full_width=True %}
         </div></details>
       {% endif %}
+      <details class="form-disclosure" open>
+        <summary>Images <span class="help-text">(optional)</span></summary>
+        <p class="help-text">Choose one or more JPEG, PNG, or WebP images to attach when you save. Images are validated, re-encoded without EXIF/GPS metadata, and subject to this category's image limit.</p>
+        <label for="id_images">Add images</label>
+        <input id="id_images" name="images" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+      </details>
       <button type="submit"{% if not editing %} name="save_listing_draft" value="1"{% endif %}>{% if editing %}Save listing changes{% else %}Save listing draft{% endif %}</button>
     {% endif %}
   </form>

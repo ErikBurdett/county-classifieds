@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from io import BytesIO
+
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
 from django.urls import reverse
+from PIL import Image
 
 from apps.accounts.models import SellerProfile, User
 from apps.catalog.models import Category, Vertical
@@ -15,6 +19,12 @@ from apps.listings.models import (
 )
 from apps.listings.services import moderate_listing, submit_listing
 from apps.locations.models import County, State, ZipCountyReference
+
+
+def attached_image() -> SimpleUploadedFile:
+    payload = BytesIO()
+    Image.new("RGB", (20, 10), "green").save(payload, format="JPEG")
+    return SimpleUploadedFile("wanted.jpg", payload.getvalue(), content_type="image/jpeg")
 
 
 @pytest.fixture
@@ -80,6 +90,7 @@ def test_wanted_create_is_generic_and_optional_budget(
             "description": "Synthetic local request only.",
             "price_mode": "contact",
             "postal_code": "79101",
+            "images": attached_image(),
         },
     )
     assert response.status_code == 302
@@ -87,6 +98,7 @@ def test_wanted_create_is_generic_and_optional_budget(
     assert listing.intent == ListingIntent.WANTED
     assert listing.listing_kind_id is None
     assert GenericListingDetails.objects.get(listing=listing).price_mode == "contact"
+    assert listing.images.count() == 1
     assert not hasattr(listing, "auto_details")
 
 

@@ -55,6 +55,7 @@ from .forms import (
 from .models import (
     GenericListingDetails,
     ListingImage,
+    ListingImageModerationStatus,
     ListingImageState,
     ListingIntent,
     ListingStatus,
@@ -421,6 +422,11 @@ def create_listing(request: HttpRequest) -> HttpResponse:  # noqa: PLR0912, PLR0
                     seller_tags=taxonomy_form.cleaned_data["seller_tags"],
                     custom_fields=taxonomy_form.cleaned_data["custom_fields"],
                 )
+            _attach_form_images(
+                request=request,
+                listing=listing,
+                seller=profile_or_response,
+            )
             return redirect("listings:owner_listing_detail", listing_id=listing.id)
 
     return render(
@@ -571,6 +577,11 @@ def edit_listing(request: HttpRequest, listing_id: UUID) -> HttpResponse:
                     seller_tags=taxonomy_form.cleaned_data["seller_tags"],
                     custom_fields=taxonomy_form.cleaned_data["custom_fields"],
                 )
+            _attach_form_images(
+                request=request,
+                listing=updated,
+                seller=profile_or_response,
+            )
             return redirect("listings:owner_listing_detail", listing_id=updated.id)
 
     return render(
@@ -808,6 +819,37 @@ def _media_context(*, listing: Any) -> dict[str, Any]:
         "required_image_count": required_count,
         "maximum_image_count": maximum_count,
     }
+
+
+def _attach_form_images(*, request: HttpRequest, listing: Any, seller: SellerProfile) -> None:
+    """Finalize optional form attachments through the normal owner-only media boundary."""
+
+    uploaded_files = request.FILES.getlist("images")
+    if not uploaded_files:
+        return
+
+    uploaded_count = 0
+    for uploaded_file in uploaded_files:
+        try:
+            session = begin_image_upload(
+                listing_id=listing.id,
+                seller=seller,
+                original_filename=uploaded_file.name or "",
+            )
+            finalize_image_upload(
+                session_id=session.id,
+                seller=seller,
+                uploaded_file=uploaded_file,
+            )
+        except ValidationError as error:
+            messages.error(request, "; ".join(error.messages))
+        else:
+            uploaded_count += 1
+    if uploaded_count:
+        messages.success(
+            request,
+            f"{uploaded_count} image{'s' if uploaded_count != 1 else ''} attached to the listing.",
+        )
 
 
 def _submission_context() -> dict[str, Any]:
@@ -1598,10 +1640,14 @@ def delete_listing_image_view(
 def private_listing_image(
     request: HttpRequest, listing_id: UUID, image_id: UUID, rendition: str
 ) -> HttpResponseBase:
-    profile_or_response = _seller_profile_or_redirect(request)
-    if isinstance(profile_or_response, HttpResponse):
-        return profile_or_response
-    get_owned_listing(listing_id=listing_id, seller=profile_or_response)
+    if request.user.has_perm("listings.moderate_listing"):
+        if not ListingImage.objects.filter(listing_id=listing_id).exists():
+            raise Http404("Listing not found.")
+    else:
+        profile_or_response = _seller_profile_or_redirect(request)
+        if isinstance(profile_or_response, HttpResponse):
+            return profile_or_response
+        get_owned_listing(listing_id=listing_id, seller=profile_or_response)
     try:
         image = ListingImage.objects.get(
             pk=image_id,
@@ -1671,11 +1717,25 @@ def moderate_listing_view(request: HttpRequest, listing_id: UUID) -> HttpRespons
         return HttpResponse(status=405)
     _moderator_or_forbidden(request)
     try:
-        outcome = ModerationActionType(request.POST["outcome"])
+        outcome = ModerationActionType(
+            request.POST.get("outcome") or request.POST["negative_outcome"]
+        )
         revision = int(request.POST["revision"])
         reason_code = None
         if reason_id := request.POST.get("reason_code"):
             reason_code = ModerationReasonCode.objects.get(pk=reason_id)
+        image_decisions: dict[UUID, tuple[ListingImageModerationStatus, str]] = {}
+        for image_id in request.POST.getlist("pending_image_id"):
+            decision = ListingImageModerationStatus(request.POST[f"image_decision_{image_id}"])
+            if decision not in {
+                ListingImageModerationStatus.APPROVED,
+                ListingImageModerationStatus.REJECTED,
+            }:
+                raise ValueError
+            image_decisions[UUID(image_id)] = (
+                decision,
+                request.POST.get(f"image_reason_{image_id}", ""),
+            )
         moderate_listing(
             listing_id=listing_id,
             actor=request.user,  # type: ignore[arg-type]
@@ -1684,6 +1744,7 @@ def moderate_listing_view(request: HttpRequest, listing_id: UUID) -> HttpRespons
             reason_code=reason_code,
             internal_note=request.POST.get("internal_note", ""),
             seller_facing_note=request.POST.get("seller_facing_note", ""),
+            image_decisions=image_decisions,
         )
         messages.success(request, "Moderation outcome recorded.")
     except (KeyError, ValueError, ModerationReasonCode.DoesNotExist, ValidationError) as error:

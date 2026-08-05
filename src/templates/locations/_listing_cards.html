@@ -1,4 +1,4 @@
-{% load listing_format %}
+{% load listing_format static %}
 <ul class="listing-cards" aria-label="Public listings">
 {% for card in listing_cards %}
   {% with listing=card.listing presentation=card.presentation %}
@@ -14,6 +14,8 @@
         <header>
           <p class="listing-card-label">{% if listing.intent == "wanted" %}Wanted · In Search Of · {{ listing.vertical.name }} · {{ listing.category.name }}{% elif listing.vertical.slug == "others" %}Others{% else %}{{ listing.vertical.name }} · {{ listing.category.name }}{% endif %}</p>
           <h3><a href="{% url 'locations:listing_detail' listing.state.slug listing.county.slug listing.id %}">{{ listing.title }}</a></h3>
+          {% if listing.status == "sold" %}<p class="listing-card-label">Sold</p>{% endif %}
+          {% if not hide_seller_attribution %}<p class="listing-card-spec">Listed by <a href="{% url 'accounts:public_seller_profile' listing.seller.public_id %}">{{ listing.seller.display_name }}</a></p>{% endif %}
         </header>
         <p class="listing-card-spec">{{ presentation.summary }}</p>
         <p class="listing-card-price">{{ listing.price_minor|listing_price:listing.currency }}</p>
@@ -37,6 +39,16 @@
       </article>
     </li>
   {% endwith %}
+  {% if listing_ads and forloop.counter|divisibleby:"3" %}
+    {% with ad=listing_ads.0 %}
+      <li class="listing-card-ad">
+        <a class="listing-card-ad__creative{% if ad.is_internal %} listing-card-ad__creative--internal{% endif %}"{% if ad.is_internal %} href="{% url 'advertising:partners' %}"{% else %} href="{{ ad.href }}" target="_blank" rel="noopener noreferrer sponsored"{% endif %} aria-label="Advertisement: {{ ad.name }}">
+          <img src="{% static 'ad-assets/' %}{{ ad.image_name }}" alt="{{ ad.alt }}" loading="lazy" decoding="async">
+          <span>Advertisement</span>
+        </a>
+      </li>
+    {% endwith %}
+  {% endif %}
   {% empty %}
     <li class="empty-state">No public listings match this search. Try a different market or clear one of the filters.</li>
   {% endfor %}

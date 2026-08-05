@@ -19,7 +19,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from apps.accounts.models import SellerProfile, User
 from apps.accounts.services import require_active_account
 from apps.billing.models import OrderStatus
-from apps.billing.services import refund_rejected_listing
+from apps.billing.services import create_checkout_order, refund_rejected_listing
 from apps.catalog.models import ListingKind, ListingProduct, Vertical
 from apps.core.models import OutboxEvent
 from apps.core.outbox import enqueue_event
@@ -43,6 +43,7 @@ from .models import (
     ListingCountyPlacement,
     ListingCustomField,
     ListingImage,
+    ListingImageModerationStatus,
     ListingImageState,
     ListingIntent,
     ListingMediaPolicy,
@@ -117,6 +118,13 @@ def _appliances_vertical() -> Vertical:
 def _apply_listing_values(listing: Listing, values: dict[str, Any]) -> None:
     for field_name, value in values.items():
         setattr(listing, field_name, value)
+
+
+def _mark_published(*, listing: Listing, published_at: datetime) -> None:
+    """Set the current publication and preserve the listing's initial publication."""
+    listing.published_at = published_at
+    if listing.first_published_at is None:
+        listing.first_published_at = published_at
 
 
 def _replace_listing_taxonomy_and_facts(
@@ -287,6 +295,37 @@ def _enqueue_listing_notification(
     event_type: str,
     seller_message: str = "",
 ) -> None:
+    notification_content = {
+        "listing.approved": ("Listing published", "Your listing is now published."),
+        "listing.payment_ready": (
+            "Listing approved — payment needed",
+            "Your listing is approved. Complete the local-demo payment to publish it.",
+        ),
+        "listing.payment_completed": (
+            "Payment complete — listing published",
+            "Your local-demo payment was confirmed and your listing is now published.",
+        ),
+        "listing.changes_requested": (
+            "Changes requested",
+            "Your listing needs changes before it can be approved.",
+        ),
+        "listing.rejected": ("Listing not approved", "Your listing was not approved."),
+        "listing.expired": ("Listing expired", "Your listing has expired."),
+        "listing.sold": ("Listing marked sold", "Your listing was marked as sold."),
+    }
+    if content := notification_content.get(event_type):
+        from apps.notifications.services import create_notification  # noqa: PLC0415
+
+        title, default_body = content
+        create_notification(
+            recipient=listing.seller.user,
+            event_type=event_type,
+            title=title,
+            body=seller_message.strip() or default_body,
+            idempotency_key=f"{event_type}:{listing.id}:{listing.lifecycle_revision}",
+            destination_route="listings:owner_listing_detail",
+            destination_kwargs={"listing_id": str(listing.id)},
+        )
     enqueue_event(
         event_type=event_type,
         payload={"listing_id": str(listing.id), "seller_message": seller_message},
@@ -402,9 +441,25 @@ def transition_owned_listing(*, listing_id: UUID, seller: SellerProfile, action:
         raise ValidationError("This listing cannot take that action now.")
     previous = listing.status
     listing.status = target
+    now = timezone.now()
+    if action == "sold":
+        if listing.first_published_at is None:
+            listing.first_published_at = listing.published_at or now
+        listing.sold_at = now
+        listing.sold_public_until = now + timedelta(days=30)
     listing.published_at = None
     listing.lifecycle_revision += 1
-    listing.save(update_fields=("status", "published_at", "lifecycle_revision", "updated_at"))
+    listing.save(
+        update_fields=(
+            "status",
+            "published_at",
+            "first_published_at",
+            "sold_at",
+            "sold_public_until",
+            "lifecycle_revision",
+            "updated_at",
+        )
+    )
     _record_action(
         listing=listing,
         actor=seller.user,
@@ -837,7 +892,6 @@ def submit_listing(*, listing_id: UUID, seller: SellerProfile) -> Listing:
     listing = Listing.objects.select_for_update().get(pk=listing_id)
     validate_submission_completeness(listing=listing, seller=seller)
     require_current_listing_acceptances(user=seller.user, listing=listing)
-    _create_generic_quote_if_configured(listing=listing)
     previous = listing.status
     listing.status = ListingStatus.SUBMITTED
     listing.lifecycle_revision += 1
@@ -849,18 +903,6 @@ def submit_listing(*, listing_id: UUID, seller: SellerProfile) -> Listing:
         from_status=previous,
         to_status=ListingStatus.SUBMITTED,
     )
-    if _uses_local_demo_billing(listing):
-        listing.status = ListingStatus.AWAITING_PAYMENT
-        listing.lifecycle_revision += 1
-        listing.save(update_fields=("status", "lifecycle_revision", "updated_at"))
-        _record_action(
-            listing=listing,
-            actor=None,
-            action_type=ModerationActionType.SUBMITTED,
-            from_status=ListingStatus.SUBMITTED,
-            to_status=ListingStatus.AWAITING_PAYMENT,
-        )
-        return listing
     listing.status = ListingStatus.IN_REVIEW
     listing.lifecycle_revision += 1
     listing.save(update_fields=("status", "lifecycle_revision", "updated_at"))
@@ -928,8 +970,70 @@ def _require_negative_reason(reason_code: ModerationReasonCode | None) -> Modera
     return reason_code
 
 
+def _apply_image_moderation(
+    *,
+    listing: Listing,
+    actor: User,
+    image_decisions: dict[UUID, tuple[ListingImageModerationStatus, str]],
+) -> None:
+    """Apply explicit staff decisions without conflating storage and review state."""
+    ready_images = list(
+        ListingImage.objects.select_for_update()
+        .filter(listing=listing, state=ListingImageState.READY)
+        .order_by("ordering")
+    )
+    pending_ids = {
+        image.id
+        for image in ready_images
+        if image.moderation_status == ListingImageModerationStatus.PENDING
+    }
+    if pending_ids != set(image_decisions):
+        raise ValidationError("Every pending image requires an approval or rejection decision.")
+    for image in ready_images:
+        decision = image_decisions.get(image.id)
+        if decision is None:
+            continue
+        moderation_status, seller_reason = decision
+        if moderation_status == ListingImageModerationStatus.REJECTED and not seller_reason.strip():
+            raise ValidationError("Rejected images require a seller-visible reason.")
+        image.moderation_status = moderation_status
+        image.moderation_reason = seller_reason.strip()
+        image.moderated_at = timezone.now()
+        image.moderated_by = actor
+        image.save(
+            update_fields=(
+                "moderation_status",
+                "moderation_reason",
+                "moderated_at",
+                "moderated_by",
+            )
+        )
+        _record_action(
+            listing=listing,
+            actor=actor,
+            action_type=(
+                ModerationActionType.IMAGE_APPROVED
+                if moderation_status == ListingImageModerationStatus.APPROVED
+                else ModerationActionType.IMAGE_REJECTED
+            ),
+            from_status=listing.status,
+            to_status=listing.status,
+            seller_facing_note=image.moderation_reason,
+        )
+
+
+def _has_required_approved_images(*, listing: Listing) -> bool:
+    required_count, _maximum_count = image_policy_for_listing(listing=listing)
+    approved_count = ListingImage.objects.filter(
+        listing=listing,
+        state=ListingImageState.READY,
+        moderation_status=ListingImageModerationStatus.APPROVED,
+    ).count()
+    return approved_count >= required_count
+
+
 @transaction.atomic
-def moderate_listing(  # noqa: PLR0913
+def moderate_listing(  # noqa: PLR0912, PLR0913
     *,
     listing_id: UUID,
     actor: User,
@@ -938,10 +1042,13 @@ def moderate_listing(  # noqa: PLR0913
     reason_code: ModerationReasonCode | None = None,
     internal_note: str = "",
     seller_facing_note: str = "",
+    image_decisions: dict[UUID, tuple[ListingImageModerationStatus, str]] | None = None,
 ) -> Listing:
     listing = _locked_moderation_listing(listing_id=listing_id, actor=actor, revision=revision)
     transitions = {
         ModerationActionType.APPROVED: ListingStatus.PUBLISHED,
+        ModerationActionType.APPROVED_NO_PAYMENT: ListingStatus.PUBLISHED,
+        ModerationActionType.APPROVED_SEND_PAYMENT_LINK: ListingStatus.AWAITING_PAYMENT,
         ModerationActionType.CHANGES_REQUESTED: ListingStatus.CHANGES_REQUESTED,
         ModerationActionType.REJECTED: ListingStatus.REJECTED,
         ModerationActionType.SUSPENDED: ListingStatus.SUSPENDED,
@@ -951,6 +1058,8 @@ def moderate_listing(  # noqa: PLR0913
     if outcome == ModerationActionType.SUSPENDED:
         if listing.status not in {ListingStatus.IN_REVIEW, ListingStatus.PUBLISHED}:
             raise ValidationError("Only published or in-review listings can be suspended.")
+    elif outcome == ModerationActionType.REJECTED and listing.status == ListingStatus.PUBLISHED:
+        pass
     elif listing.status != ListingStatus.IN_REVIEW:
         raise ValidationError("Only listings in review can receive this outcome.")
     if outcome in {
@@ -959,11 +1068,26 @@ def moderate_listing(  # noqa: PLR0913
         ModerationActionType.SUSPENDED,
     }:
         reason_code = _require_negative_reason(reason_code)
+    _apply_image_moderation(
+        listing=listing,
+        actor=actor,
+        image_decisions=image_decisions or {},
+    )
+    effective_outcome = outcome
+    if outcome in {
+        ModerationActionType.APPROVED,
+        ModerationActionType.APPROVED_NO_PAYMENT,
+        ModerationActionType.APPROVED_SEND_PAYMENT_LINK,
+    } and not _has_required_approved_images(listing=listing):
+        effective_outcome = ModerationActionType.CHANGES_REQUESTED
+        reason_code = _require_negative_reason(reason_code)
+        if not seller_facing_note.strip():
+            seller_facing_note = "Add enough approved images to meet this category's requirement."
     previous = listing.status
-    listing.status = transitions[outcome]
+    listing.status = transitions[effective_outcome]
     listing.assigned_moderator = actor
     if listing.status == ListingStatus.PUBLISHED:
-        listing.published_at = timezone.now()
+        _mark_published(listing=listing, published_at=timezone.now())
         listing.last_material_edit_at = None
         paid_line = (
             listing.orders.filter(status=OrderStatus.PAID)
@@ -973,6 +1097,7 @@ def moderate_listing(  # noqa: PLR0913
         )
         if paid_line is not None:
             duration = paid_line.lines.get().duration_days
+            assert listing.published_at is not None
             listing.expires_at = listing.published_at + timedelta(days=duration)
     else:
         listing.published_at = None
@@ -982,33 +1107,40 @@ def moderate_listing(  # noqa: PLR0913
             "status",
             "assigned_moderator",
             "published_at",
+            "first_published_at",
             "expires_at",
             "last_material_edit_at",
             "lifecycle_revision",
             "updated_at",
         )
     )
+    if effective_outcome == ModerationActionType.APPROVED_SEND_PAYMENT_LINK:
+        if not settings.DEBUG:
+            raise ValidationError("The local-demo payment link is only available in DEBUG mode.")
+        create_checkout_order(listing_id=listing.id, seller_id=listing.seller_id)
     if listing.status == ListingStatus.PUBLISHED:
         rebuild_public_search_document(listing=listing)
     _record_action(
         listing=listing,
         actor=actor,
-        action_type=outcome,
+        action_type=effective_outcome,
         from_status=previous,
         to_status=listing.status,
         reason_code=reason_code,
         internal_note=internal_note,
         seller_facing_note=seller_facing_note,
     )
-    if outcome == ModerationActionType.REJECTED:
+    if effective_outcome == ModerationActionType.REJECTED:
         # The local adapter owns payment truth; no browser route can initiate this transition.
         refund_rejected_listing(listing_id=listing.id)
     notification_events = {
         ModerationActionType.APPROVED: "listing.approved",
+        ModerationActionType.APPROVED_NO_PAYMENT: "listing.approved",
+        ModerationActionType.APPROVED_SEND_PAYMENT_LINK: "listing.payment_ready",
         ModerationActionType.CHANGES_REQUESTED: "listing.changes_requested",
         ModerationActionType.REJECTED: "listing.rejected",
     }
-    if event_type := notification_events.get(outcome):
+    if event_type := notification_events.get(effective_outcome):
         _enqueue_listing_notification(
             listing=listing,
             event_type=event_type,
@@ -1410,10 +1542,18 @@ def publish_demo_listing(*, listing_id: UUID) -> Listing:
     listing.full_clean()
     details.full_clean()
     listing.status = ListingStatus.PUBLISHED
-    listing.published_at = timezone.now()
+    _mark_published(listing=listing, published_at=timezone.now())
     listing.lifecycle_revision += 1
     listing.full_clean()
-    listing.save(update_fields=("status", "published_at", "lifecycle_revision", "updated_at"))
+    listing.save(
+        update_fields=(
+            "status",
+            "published_at",
+            "first_published_at",
+            "lifecycle_revision",
+            "updated_at",
+        )
+    )
     rebuild_public_search_document(listing=listing)
     _record_action(
         listing=listing,
@@ -1454,10 +1594,18 @@ def _publish_auto_listing_direct(*, listing_id: UUID) -> Listing:
     listing.full_clean()
     details.full_clean()
     listing.status = ListingStatus.PUBLISHED
-    listing.published_at = timezone.now()
+    _mark_published(listing=listing, published_at=timezone.now())
     listing.lifecycle_revision += 1
     listing.full_clean()
-    listing.save(update_fields=("status", "published_at", "lifecycle_revision", "updated_at"))
+    listing.save(
+        update_fields=(
+            "status",
+            "published_at",
+            "first_published_at",
+            "lifecycle_revision",
+            "updated_at",
+        )
+    )
     rebuild_public_search_document(listing=listing)
     _record_action(
         listing=listing,
@@ -1481,11 +1629,7 @@ def image_policy_for_listing(*, listing: Listing) -> tuple[int, int]:
 
 
 def _locked_owned_draft(*, listing_id: UUID, seller: SellerProfile) -> Listing:
-    listing = (
-        Listing.objects.select_for_update()
-        .select_related("category", "listing_kind")
-        .get(pk=listing_id)
-    )
+    listing = Listing.objects.select_for_update().select_related("category").get(pk=listing_id)
     if listing.seller_id != seller.id or listing.status not in OWNER_EDITABLE_STATUSES:
         raise PermissionDenied(
             "Only the owner may change draft, changed, or published listing media."
@@ -1581,7 +1725,7 @@ def _finalize_image_upload(
 ) -> ListingImage:
     session = (
         UploadSession.objects.select_for_update()
-        .select_related("listing__category", "listing__listing_kind")
+        .select_related("listing__category")
         .get(pk=session_id)
     )
     listing = _locked_owned_draft(listing_id=session.listing_id, seller=seller)

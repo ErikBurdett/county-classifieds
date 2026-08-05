@@ -7,10 +7,16 @@ from django.db.models.functions import ACos, Cos, Greatest, Least, Radians, Sin
 from django.http import Http404
 from django.utils import timezone
 
-from apps.accounts.models import SellerProfile, User
+from apps.accounts.models import AccountStatus, SellerProfile, User
 from apps.locations.models import County
 
-from .models import Listing, ListingImage, ListingImageState, ListingStatus
+from .models import (
+    Listing,
+    ListingImage,
+    ListingImageModerationStatus,
+    ListingImageState,
+    ListingStatus,
+)
 
 
 def get_owned_draft(*, listing_id: UUID, seller: SellerProfile) -> Listing:
@@ -101,7 +107,7 @@ def moderation_queue() -> QuerySet[Listing]:
         .select_related(
             "seller__user", "vertical", "category", "state", "county", "assigned_moderator"
         )
-        .prefetch_related("controlled_tags__category", "seller_tags", "custom_fields")
+        .prefetch_related("controlled_tags__category", "seller_tags", "custom_fields", "images")
         .order_by("created_at")
     )
 
@@ -220,6 +226,7 @@ def public_listings() -> QuerySet[Listing]:
         .select_related(
             "category",
             "county",
+            "seller",
             "state",
             "vertical",
             "auto_details",
@@ -233,6 +240,77 @@ def public_listings() -> QuerySet[Listing]:
         )
         .prefetch_related("controlled_tags__category", "seller_tags", "custom_fields")
         .defer("auto_details__vin")
+    )
+
+
+def public_seller_feed_listings(*, seller: SellerProfile) -> QuerySet[Listing]:
+    """Return a seller's active listings and recently sold, still-public listings."""
+    now = timezone.now()
+    return (
+        Listing.objects.filter(
+            seller=seller,
+            seller__user__account_status=AccountStatus.ACTIVE,
+            seller__user__is_active=True,
+            vertical__is_active=True,
+            category__is_active=True,
+            state__is_active=True,
+            state__is_network_enabled=True,
+            county__is_active=True,
+            county__is_network_enabled=True,
+        )
+        .filter(
+            Q(
+                status=ListingStatus.PUBLISHED,
+                expires_at__isnull=True,
+            )
+            | Q(
+                status=ListingStatus.PUBLISHED,
+                expires_at__gt=now,
+            )
+            | Q(
+                status=ListingStatus.SOLD,
+                sold_at__isnull=False,
+                sold_public_until__gt=now,
+            )
+        )
+        .select_related(
+            "seller",
+            "seller__user",
+            "category",
+            "county",
+            "state",
+            "vertical",
+            "auto_details",
+            "ag_equipment_details",
+            "home_details",
+            "home_goods_details",
+            "livestock_details",
+            "pasture_details",
+            "rental_details",
+            "generic_details",
+        )
+        .prefetch_related(
+            "controlled_tags__category",
+            "seller_tags",
+            "custom_fields",
+            Prefetch(
+                "images",
+                queryset=ListingImage.objects.filter(
+                    state=ListingImageState.READY,
+                    moderation_status=ListingImageModerationStatus.APPROVED,
+                ).only(
+                    "id",
+                    "listing_id",
+                    "ordering",
+                    "content_type",
+                    "rendition_key",
+                    "width",
+                    "height",
+                ),
+            ),
+        )
+        .defer("auto_details__vin")
+        .order_by("-first_published_at", "-published_at", "-id")
     )
 
 
@@ -286,8 +364,17 @@ def public_listing_with_images() -> QuerySet[Listing]:
     return public_listings().prefetch_related(
         Prefetch(
             "images",
-            queryset=ListingImage.objects.filter(state=ListingImageState.READY).only(
-                "id", "listing_id", "ordering", "content_type", "rendition_key", "width", "height"
+            queryset=ListingImage.objects.filter(
+                state=ListingImageState.READY,
+                moderation_status=ListingImageModerationStatus.APPROVED,
+            ).only(
+                "id",
+                "listing_id",
+                "ordering",
+                "content_type",
+                "rendition_key",
+                "width",
+                "height",
             ),
         )
     )

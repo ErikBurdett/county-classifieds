@@ -147,12 +147,12 @@ The command is DEBUG-only and idempotently creates one private Home & Garden
 draft and one private Appliances draft. It neither publishes nor modifies an
 existing draft.
 
-`seed-demo-billing` is DEBUG-only and adds the explicit local billing demo
-configuration: `$10.00 USD` (1000 minor units) for 30 days on
-`AUTOS_NEW_FIXED`. This is not production pricing policy and does not contact
-Stripe. Submit an eligible Autos fixed-price draft, start checkout from the
-dashboard, then use the staff-only `/staff/billing/reconciliation/` screen to
-record the deterministic local payment. Browser result pages never mark paid.
+The local billing adapter is DEBUG-only and never contacts Stripe. Sellers first
+submit to staff moderation; a moderator may publish without payment or approve
+and send a local payment link. The server-owned demo amount is $10 for the
+primary county plus $5 per additional county across listing types. Use the
+staff-only `/staff/billing/reconciliation/` screen to record the deterministic
+payment; browser result pages never mark paid.
 
 Generic listing county selection needs an operator-provided local ZIP-to-county
 crosswalk after geography is loaded. The importer accepts only the HUD CSV

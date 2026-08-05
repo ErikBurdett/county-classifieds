@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Marketplace partners | TheCountyPost Market{% endblock %}
+{% block content %}
+  <section class="partners-hero" aria-labelledby="partners-title">
+    <p class="eyebrow">TheCountyPost Market</p>
+    <h1 id="partners-title">Marketplace partners</h1>
+    <p>We appreciate the businesses and organizations helping support regional listings.</p>
+  </section>
+
+  <section class="partner-directory" aria-labelledby="nationwide-partners-title">
+    <h2 id="nationwide-partners-title">Nationwide partners</h2>
+    <div class="partner-directory__grid">
+      {% for partner in nationwide_partners %}
+        <article class="partner-card">
+          <img src="{% static 'ad-assets/' %}{{ partner.image_name }}" alt="{{ partner.alt }}">
+          <h3>{{ partner.name }}</h3>
+          <a href="{{ partner.href }}" target="_blank" rel="noopener noreferrer sponsored">Visit partner<span class="sr-only">: {{ partner.name }}</span></a>
+        </article>
+      {% empty %}
+        <p class="empty-state">Partners will appear here soon.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="partner-directory" aria-labelledby="founding-partners-title">
+    <h2 id="founding-partners-title">County founding partners</h2>
+    <p>These regional supporters are featured throughout the County Post network.</p>
+    <div class="partner-directory__grid">
+      {% for partner in founding_partners %}
+        <article class="partner-card">
+          <img src="{% static 'ad-assets/' %}{{ partner.image_name }}" alt="{{ partner.alt }}">
+          <h3>{{ partner.name }}</h3>
+          <p>County founding partner</p>
+        </article>
+      {% empty %}
+        <p class="empty-state">Partners will appear here soon.</p>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

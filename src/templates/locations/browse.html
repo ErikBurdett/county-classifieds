@@ -16,6 +16,7 @@
     <p class="eyebrow">{% if in_search_of %}In Search Of{% elif county %}County market{% else %}State market{% endif %}</p>
     <h1 id="browse-title">{% if in_search_of %}Wanted listings in {% else %}Listings in {% endif %}{% if county %}{{ county.name }}, {% endif %}{{ state.name }}</h1>
     <p>{% if county %}This county route starts with statewide results. Choose “This county” to include listings placed in {{ county.name }} (primary or additional placement).{% else %}Browse public listings statewide or narrow your search to an enabled county-equivalent market.{% endif %}</p>
+    {% if county %}{% include "advertising/_compact_sponsor.html" with sponsor=county_sponsor_ad %}{% endif %}
   </section>
 
   {% include "locations/_market_finder.html" %}
@@ -36,6 +37,7 @@
           <h2 id="filter-title">Filter listings</h2>
         </div>
         <p>All filters update this {{ county.name|default:state.name }} market.</p>
+        {% include "advertising/_compact_sponsor.html" with sponsor=filter_sponsor_ad %}
         <button
           class="filter-disclosure-toggle"
           type="button"
@@ -102,6 +104,8 @@
       {% endif %}
       {% include "locations/_browse_results.html" %}
     </section>
+
+    {% include "advertising/_slot.html" with ads=inline_ads slot="inline" %}
 
     {% if not is_county %}
       <section class="market-section" aria-labelledby="counties-title">

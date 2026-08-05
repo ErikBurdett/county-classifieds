@@ -16,6 +16,7 @@ from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
+from apps.advertising.selectors import ads_for_slot
 from apps.listings.presenters import present_public_listing
 from apps.listings.selectors import public_listing_with_images, public_listings
 from apps.locations.forms import PublicMarketFinderForm
@@ -58,6 +59,8 @@ def home(request: HttpRequest) -> HttpResponse:
             "seo_metadata": home_metadata(request=request),
             "states": State.objects.filter(is_active=True),
             "location_finder_form": PublicMarketFinderForm(),
+            "inline_ads": ads_for_slot(slot="inline", limit=8),
+            "listing_ads": ads_for_slot(slot="inline", limit=3),
             "listings": listings,
             "listing_cards": [
                 {

@@ -1,0 +1,23 @@
+{% load static %}
+{% if ads %}
+  <aside class="ad-slot ad-slot--{{ slot }}" aria-label="Sponsored advertisements" data-ad-carousel>
+    <p class="ad-slot__label">{% if slot == "inline" %}Presented by our advertisers{% else %}Sponsored{% endif %}</p>
+    <div class="ad-slot__shell">
+      <button class="ad-slot__control" type="button" aria-label="Previous advertisement" data-ad-previous>‹</button>
+      <div class="ad-slot__track" data-ad-track>
+        {% for ad in ads %}
+          {% if ad.is_internal %}
+            <a class="ad-slot__creative" href="{% url 'advertising:partners' %}">
+              <img src="{% static 'ad-assets/' %}{{ ad.image_name }}" alt="{{ ad.alt }}">
+            </a>
+          {% else %}
+            <a class="ad-slot__creative" href="{{ ad.href }}" target="_blank" rel="noopener noreferrer sponsored">
+              <img src="{% static 'ad-assets/' %}{{ ad.image_name }}" alt="{{ ad.alt }}">
+            </a>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <button class="ad-slot__control" type="button" aria-label="Next advertisement" data-ad-next>›</button>
+    </div>
+  </aside>
+{% endif %}

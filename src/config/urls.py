@@ -12,7 +12,9 @@ urlpatterns = [
     path("", include("apps.listings.urls")),
     path("", include("apps.billing.urls")),
     path("", include("apps.reports.urls")),
+    path("", include("apps.notifications.urls")),
     path("", include("apps.policies.urls")),
+    path("", include("apps.advertising.urls")),
     path("", include("apps.core.urls")),
     path("", include("apps.locations.urls")),
 ]

@@ -95,7 +95,7 @@ seed-marketplace-catalog:
 seed-demo-marketplace:
 	$(UV) python src/manage.py seed_demo_marketplace
 
-seed-demo-minimal: seed-texas-autos seed-demo-marketplace seed-moderation-reason-codes seed-demo-billing provision-staff-groups seed-demo-staff
+seed-demo-minimal: seed-texas-autos seed-demo-marketplace seed-moderation-reason-codes seed-demo-billing seed-generic-demo-pricing provision-staff-groups seed-demo-staff
 
 seed-demo-full: seed-demo-minimal seed-marketplace-catalog seed-demo-generic-taxonomy seed-demo-wanted-listings seed-demo-properties seed-demo-rural-drafts seed-demo-home-goods-drafts seed-draft-policy-documents
 

@@ -27,15 +27,16 @@ Source pricing is a starting business proposal, not code constants:
 
 ## Order flow
 
-1. Seller completes a valid draft.
-2. Server selects eligible products and creates an immutable order/line snapshot.
-3. Server creates a Stripe Checkout Session with an idempotency key and metadata containing only stable internal IDs.
-4. Browser is redirected to Stripe-hosted Checkout.
+1. Seller completes a valid draft and submits it to moderation.
+2. A moderator either publishes without payment or approves a payment link.
+3. For payment approval, the server selects eligible products and creates an immutable order/line snapshot.
+4. The browser is redirected to provider-hosted Checkout in production; the local
+   demo instead uses its staff-confirmed deterministic event.
 5. Success/cancel routes show current application order state; neither route marks an order paid.
-6. Verified Stripe webhook is stored by unique event ID.
-7. Idempotent handler retrieves/validates relevant Stripe objects when needed.
-8. Handler marks the order paid and transitions the listing to moderation in one transaction.
-9. Notification/outbox events are created.
+6. Verified provider payment is stored by unique event ID.
+7. The idempotent handler validates payment truth and publishes the already
+   moderator-approved listing in one transaction.
+8. Notification/outbox events are created.
 
 ## Webhook requirements
 

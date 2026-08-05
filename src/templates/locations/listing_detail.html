@@ -12,6 +12,7 @@
     <h1>{{ listing.title }}</h1>
     <p class="listing-card-price">{{ listing.price_minor|listing_price:listing.currency }}</p>
     <p>{{ presentation.location }}{% if presentation.address %} · {{ presentation.address }}{% endif %}</p>
+    <p>Listed by <a href="{% url 'accounts:public_seller_profile' listing.seller.public_id %}">{{ listing.seller.display_name }}</a></p>
   </header>
   {% if images %}
   <section class="listing-gallery" aria-label="Listing images">

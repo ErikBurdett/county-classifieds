@@ -15,14 +15,37 @@
           <div><dt>Seller tags (pending public approval)</dt><dd>{% for tag in listing.seller_tags.all %}{{ tag.value }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</dd></div>
           <div><dt>Additional details (pending public approval)</dt><dd>{% for field in listing.custom_fields.all %}{{ field.label }}: {{ field.value }}{% if not forloop.last %}; {% endif %}{% empty %}None{% endfor %}</dd></div>
         </dl>
-        <form method="post" action="{% url 'listings:moderate_listing' listing.id %}">
+        {% if listing.images.all %}
+          <fieldset>
+            <legend>Image review</legend>
+            {% for image in listing.images.all %}
+              <div class="form-field">
+                <img src="{% url 'listings:private_listing_image' listing.id image.id 'preview' %}" alt="Private listing image {{ forloop.counter }}" width="160" height="160">
+                <p>Image {{ forloop.counter }}: {{ image.get_moderation_status_display }}</p>
+                {% if image.moderation_status == "pending" %}
+                  <input type="hidden" form="moderate-{{ listing.id }}" name="pending_image_id" value="{{ image.id }}">
+                  <label for="image-decision-{{ image.id }}">Decision</label>
+                  <select form="moderate-{{ listing.id }}" id="image-decision-{{ image.id }}" name="image_decision_{{ image.id }}">
+                    <option value="approved">Approve image</option>
+                    <option value="rejected">Reject image</option>
+                  </select>
+                  <label for="image-reason-{{ image.id }}">Seller-visible rejection reason</label>
+                  <input form="moderate-{{ listing.id }}" id="image-reason-{{ image.id }}" name="image_reason_{{ image.id }}" type="text">
+                {% elif image.moderation_status == "rejected" %}
+                  <p>Seller-visible reason: {{ image.moderation_reason }}</p>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </fieldset>
+        {% endif %}
+        <form id="moderate-{{ listing.id }}" method="post" action="{% url 'listings:moderate_listing' listing.id %}">
           {% csrf_token %}
           <input type="hidden" name="revision" value="{{ listing.lifecycle_revision }}">
           <fieldset>
             <legend>Review outcome</legend>
-          <div class="form-field"><label for="outcome-{{ listing.id }}">Outcome</label>
-            <select id="outcome-{{ listing.id }}" name="outcome">
-              <option value="approved">Approve and publish</option>
+          <div class="form-field"><label for="negative-outcome-{{ listing.id }}">Other outcome</label>
+            <select id="negative-outcome-{{ listing.id }}" name="negative_outcome">
+              <option value="">Choose an outcome</option>
               <option value="changes_requested">Request changes</option>
               <option value="rejected">Reject</option>
               <option value="suspended">Suspend</option>
@@ -34,7 +57,11 @@
           <div class="form-field"><label for="seller-note-{{ listing.id }}">Seller-facing note</label><textarea id="seller-note-{{ listing.id }}" name="seller_facing_note"></textarea></div>
           <div class="form-field"><label for="internal-note-{{ listing.id }}">Internal note</label><textarea id="internal-note-{{ listing.id }}" name="internal_note"></textarea></div>
           </fieldset>
-          <button type="submit">Record outcome</button>
+          <div class="moderation-actions">
+            <button type="submit" name="outcome" value="approved_no_payment">Approve Without Payment Link</button>
+            <button type="submit" name="outcome" value="approved_send_payment_link">Approve &amp; Send Payment Link</button>
+            <button type="submit" name="outcome" value="">Record other outcome</button>
+          </div>
         </form>
       </article>
     {% empty %}

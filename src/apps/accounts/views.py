@@ -1,15 +1,32 @@
 from __future__ import annotations
 
+import mimetypes
+from uuid import UUID
+
 from django.contrib.auth import login
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm
-from django.http import HttpRequest, HttpResponse
+from django.core.files.storage import default_storage
+from django.core.paginator import Paginator
+from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.views.decorators.http import require_GET
+
+from apps.listings.models import Listing, ListingStatus
+from apps.listings.presenters import present_public_listing
+from apps.listings.selectors import public_seller_feed_listings
 
 from .forms import MarketplaceAuthenticationForm, SellerProfileForm, SellerRegistrationForm
-from .models import AccountSecurityEventType, SellerProfile, User
-from .services import record_security_event, register_seller
+from .models import (
+    AccountSecurityEventType,
+    SellerProfile,
+    SellerProfileRevision,
+    SellerProfileRevisionStatus,
+    User,
+)
+from .selectors import public_seller_profile
+from .services import record_security_event, register_seller, submit_seller_profile_revision
 
 
 class MarketplaceLoginView(auth_views.LoginView):
@@ -92,18 +109,94 @@ def register(request: HttpRequest) -> HttpResponse:
 @login_required
 def seller_profile(request: HttpRequest) -> HttpResponse:
     assert isinstance(request.user, User)
-    try:
-        profile = request.user.seller_profile
-    except SellerProfile.DoesNotExist:
-        profile = None
+    profile = (
+        SellerProfile.objects.select_related("current_approved_revision")
+        .filter(user=request.user)
+        .first()
+    )
+    approved_revision = profile.current_approved_revision if profile is not None else None
 
     if request.method == "POST":
-        form = SellerProfileForm(request.POST, instance=profile)
+        form = SellerProfileForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
-            seller_profile = form.save(commit=False)
-            seller_profile.user = request.user
-            seller_profile.save()
+            submit_seller_profile_revision(
+                user=request.user,
+                display_name=form.cleaned_data["display_name"],
+                phone=form.cleaned_data["phone"],
+                content=form.revision_content(),
+                avatar=form.cleaned_data["avatar"],
+            )
             return redirect("listings:dashboard")
     else:
-        form = SellerProfileForm(instance=profile)
-    return render(request, "accounts/seller_profile_form.html", {"form": form})
+        initial = (
+            {
+                field_name: getattr(approved_revision, field_name)
+                for field_name in SellerProfileRevision.public_content_field_names()
+            }
+            if approved_revision is not None
+            else None
+        )
+        form = SellerProfileForm(instance=profile, initial=initial)
+    return render(
+        request,
+        "accounts/seller_profile_form.html",
+        {"form": form, "approved_revision": approved_revision},
+    )
+
+
+@require_GET
+def public_seller_profile_view(request: HttpRequest, public_id: UUID) -> HttpResponse:
+    """Render a public seller page from safe, approved profile and listing data only."""
+    seller = public_seller_profile(public_id=public_id)
+    if seller is None:
+        raise Http404("Seller not found.")
+    feed = public_seller_feed_listings(seller=seller)
+    page = Paginator(feed, 24).get_page(request.GET.get("page"))
+    public_history = Listing.objects.filter(seller=seller, first_published_at__isnull=False)
+    profile_listings = list(page.object_list)
+    return render(
+        request,
+        "accounts/public_seller_profile.html",
+        {
+            "seller": seller,
+            "revision": seller.current_approved_revision,
+            "page_obj": page,
+            "listing_cards": [
+                {
+                    "listing": listing,
+                    "presentation": present_public_listing(listing=listing),
+                    "image": next(iter(listing.images.all()), None),
+                }
+                for listing in profile_listings
+            ],
+            "states": sorted({listing.state for listing in feed}, key=lambda state: state.name),
+            "counties": sorted(
+                {listing.county for listing in feed},
+                key=lambda county: (county.state.name, county.name),
+            ),
+            "public_listing_count": public_history.count(),
+            "expired_count": public_history.filter(status=ListingStatus.EXPIRED).count(),
+            "archived_count": public_history.filter(status=ListingStatus.ARCHIVED).count(),
+        },
+    )
+
+
+@require_GET
+def public_seller_avatar(request: HttpRequest, public_id: UUID) -> FileResponse:
+    """Serve only the avatar included in a seller's current approved revision."""
+    del request
+    seller = public_seller_profile(public_id=public_id)
+    if (
+        seller is None
+        or seller.current_approved_revision is None
+        or seller.current_approved_revision.status != SellerProfileRevisionStatus.APPROVED
+    ):
+        raise Http404("Profile image not found.")
+    avatar = seller.current_approved_revision.avatar
+    if not avatar or not default_storage.exists(avatar.name):
+        raise Http404("Profile image not found.")
+    content_type = mimetypes.guess_type(avatar.name)[0] or "application/octet-stream"
+    response = FileResponse(default_storage.open(avatar.name, "rb"), content_type=content_type)
+    response["Cache-Control"] = "public, max-age=3600"
+    response["Content-Disposition"] = "inline"
+    return response

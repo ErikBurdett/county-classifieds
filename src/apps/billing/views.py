@@ -73,9 +73,7 @@ def local_confirm(request: HttpRequest, order_id: UUID) -> HttpResponse:
         raise PermissionDenied
     get_object_or_404(Order, pk=order_id)
     record_local_payment(order_id=order_id)
-    messages.success(
-        request, "Local demo payment recorded. The listing is now awaiting moderation."
-    )
+    messages.success(request, "Local demo payment recorded. The approved listing is now published.")
     return redirect("billing:reconciliation")
 
 

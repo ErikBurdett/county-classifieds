@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from io import BytesIO
+
 import pytest
 from django import forms
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
+from django.db import models
 from django.test import Client, override_settings
 from django.urls import reverse
+from PIL import Image
 
 from apps.accounts.models import SellerProfile, User
 from apps.catalog.models import CatalogPostingField, CatalogPostingProfile, Category, Vertical
@@ -23,6 +28,12 @@ from apps.listings.workflows import resolve_listing_workflow
 from apps.locations.models import County, State, ZipCountyReference
 
 pytestmark = pytest.mark.django_db
+
+
+def attached_image() -> SimpleUploadedFile:
+    payload = BytesIO()
+    Image.new("RGB", (20, 10), "blue").save(payload, format="JPEG")
+    return SimpleUploadedFile("listing.jpg", payload.getvalue(), content_type="image/jpeg")
 
 
 @pytest.mark.parametrize(
@@ -174,6 +185,7 @@ def test_unified_route_advances_then_creates_home_details(
             "baths": "2.0",
             "square_feet": 1800,
             "general_area": "North Amarillo",
+            "images": attached_image(),
         },
     )
     assert response.status_code == 302, response.content.decode()
@@ -181,6 +193,7 @@ def test_unified_route_advances_then_creates_home_details(
     assert listing.category == category
     assert listing.broker_name == "Panhandle Property Group"
     assert HomeDetails.objects.get(listing=listing).beds == 3
+    assert listing.images.count() == 1
     assert not hasattr(listing, "generic_details")
 
 
@@ -678,6 +691,22 @@ def test_listing_broker_name_field_is_bounded_and_optional() -> None:
     assert field.max_length == 120
 
 
+def test_availability_fields_are_optional_for_every_listing_workflow() -> None:
+    availability_fields = (
+        "available_for_pickup",
+        "delivery_available",
+        "shipping_available",
+    )
+
+    for field_name in availability_fields:
+        field = Listing._meta.get_field(field_name)
+        assert isinstance(field, models.Field)
+        assert field.default is False
+        assert field_name in GenericListingForm.base_fields
+        assert field_name in AutoListingForm.base_fields
+        assert field_name in HomeListingForm.base_fields
+
+
 def test_taxonomy_and_fact_form_normalizes_and_rejects_private_input(
     unified_reference: tuple[SellerProfile, State, County],
 ) -> None:
@@ -790,6 +819,7 @@ def test_unified_edit_updates_typed_details_taxonomy_and_broker(
             "seller_tag_0": "Open house",
             "custom_field_label_0": "School district",
             "custom_field_value_0": "West",
+            "images": attached_image(),
         },
     )
 
@@ -805,6 +835,7 @@ def test_unified_edit_updates_typed_details_taxonomy_and_broker(
     }
     assert list(listing.seller_tags.values_list("value", flat=True)) == ["Open house"]
     assert list(listing.custom_fields.values_list("label", flat=True)) == ["School district"]
+    assert listing.images.count() == 1
 
 
 def test_unified_edit_blocks_non_owner_and_reviewed_listing(

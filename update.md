@@ -1,7 +1,23 @@
 # TheCountyPost Market — Development Update
 
-**Updated:** 2026-07-30  
+**Updated:** 2026-08-04
 **Status:** Functional local/nationwide demo foundation; not ready for a public production launch.
+
+## 2026-08-04 seller profiles, availability, retention, and sponsorship
+
+- [x] Public seller profiles have stable UUID routes, safe listing attribution,
+  approved avatars/bios/HTTPS links, state/county coverage, and public-history
+  metrics. Pending profile revisions are reviewed in Django Admin.
+- [x] Public profiles show active listings and Sold listings for 30 days only;
+  sold listings stay out of global browse/search/sitemaps. Expired/archived
+  rows are aggregate counts only.
+- [x] Every listing can independently declare pickup, delivery, and shipping
+  availability.
+- [x] Static advertising now supplies `/partners/`, compact sponsors,
+  banner/inline slots, and responsive in-feed ads without targeting, tracking,
+  or self-service billing.
+- [x] Seller submission now reaches moderation before any optional local-demo
+  payment link. Image-level review and in-app notifications are implemented.
 
 ## 2026-07-30 Others overflow vertical
 

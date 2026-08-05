@@ -10,6 +10,7 @@
     <div><dt>Primary category</dt><dd>{{ listing.category.name }}</dd></div>
     <div><dt>Location</dt><dd>{{ listing.city }}, {{ listing.county.name }}, {{ listing.state.usps_code }}</dd></div>
     <div><dt>Broker or brokerage status</dt><dd>{% if listing.broker_name %}{{ listing.broker_name }}{% if listing.status != "published" %} (pending public display){% endif %}{% else %}Not provided{% endif %}</dd></div>
+    <div><dt>Availability</dt><dd>{% if listing.available_for_pickup %}Pickup{% endif %}{% if listing.delivery_available %}{% if listing.available_for_pickup %}, {% endif %}Delivery{% endif %}{% if listing.shipping_available %}{% if listing.available_for_pickup or listing.delivery_available %}, {% endif %}Shipping{% endif %}{% if not listing.available_for_pickup and not listing.delivery_available and not listing.shipping_available %}Not specified{% endif %}</dd></div>
   </dl>
   <section aria-labelledby="owner-taxonomy-title">
     <h2 id="owner-taxonomy-title">Tags and additional details{% if listing.status != "published" %} (private/pending){% endif %}</h2>

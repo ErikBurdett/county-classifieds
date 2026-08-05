@@ -175,8 +175,7 @@ def test_seller_submission_reviewer_approval_makes_listing_public(
     page.get_by_label("Password").fill("test-password")
     page.get_by_role("button", name="Sign in").click()
     page.goto(f"{live_server.url}/staff/moderation/")
-    page.locator("select[name=outcome]").select_option("approved")
-    page.get_by_role("button", name="Record outcome").click()
+    page.get_by_role("button", name="Approve Without Payment Link").click()
 
     page.goto(f"{live_server.url}/texas/")
     expect(page.get_by_text("Reviewable Mustang", exact=True)).to_be_visible()

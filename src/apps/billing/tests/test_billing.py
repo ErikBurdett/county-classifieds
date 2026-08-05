@@ -68,6 +68,23 @@ def checkout_listing() -> tuple[Listing, SellerProfile, ListingProduct]:
     ProductPrice.objects.create(
         product=product, currency="USD", amount_minor=1000, effective_from=timezone.now()
     )
+    for product_code, amount_minor in (
+        ("GENERIC_PRIMARY_PLACEMENT", 1000),
+        ("GENERIC_ADDITIONAL_COUNTY", 500),
+    ):
+        distribution_product = ListingProduct.objects.create(
+            product_code=product_code,
+            use_case=ListingProductUseCase.NEW_LISTING,
+            price_mode=ListingPriceMode.FIXED,
+            is_generic_distribution=True,
+            duration_days=30,
+        )
+        ProductPrice.objects.create(
+            product=distribution_product,
+            currency="USD",
+            amount_minor=amount_minor,
+            effective_from=timezone.now(),
+        )
     listing = Listing.objects.create(
         seller=seller,
         vertical=vertical,
@@ -88,13 +105,13 @@ def checkout_listing() -> tuple[Listing, SellerProfile, ListingProduct]:
 def test_checkout_snapshots_server_owned_price(
     checkout_listing: tuple[Listing, SellerProfile, ListingProduct],
 ) -> None:
-    listing, seller, product = checkout_listing
+    listing, seller, _product = checkout_listing
 
     checkout = create_checkout_order(listing_id=listing.id, seller_id=seller.id)
 
     assert checkout.order.total_minor == 1000
     assert checkout.order.currency == "USD"
-    assert checkout.order.lines.get().product == product
+    assert checkout.order.lines.get().product_code == "GENERIC_PRIMARY_PLACEMENT"
     assert checkout.order.lines.get().duration_days == 30
 
 
@@ -133,7 +150,7 @@ def test_payment_event_mismatch_and_duplicate_are_safe(
     listing.refresh_from_db()
     assert event.status == PaymentEventStatus.PROCESSED
     assert order.status == OrderStatus.PAID
-    assert listing.status == ListingStatus.IN_REVIEW
+    assert listing.status == ListingStatus.PUBLISHED
     assert record_local_payment(order_id=order.id).id == event.id
 
 
@@ -174,14 +191,14 @@ def test_local_confirm_requires_debug_staff(
 def test_catalog_price_window_is_required(
     checkout_listing: tuple[Listing, SellerProfile, ListingProduct],
 ) -> None:
-    listing, seller, product = checkout_listing
-    ProductPrice.objects.filter(product=product).delete()
+    listing, seller, _product = checkout_listing
+    ProductPrice.objects.filter(product__product_code="GENERIC_PRIMARY_PLACEMENT").delete()
 
-    with pytest.raises(Exception, match="No effective price"):
+    with pytest.raises(Exception, match="local-demo quote is not configured"):
         create_checkout_order(listing_id=listing.id, seller_id=seller.id)
 
 
-def test_debug_submission_waits_for_payment(
+def test_submission_always_enters_review(
     checkout_listing: tuple[Listing, SellerProfile, ListingProduct],
 ) -> None:
     listing, seller, _product = checkout_listing
@@ -201,7 +218,7 @@ def test_debug_submission_waits_for_payment(
     with override_settings(DEBUG=True):
         submitted = submit_listing(listing_id=listing.id, seller=seller)
 
-    assert submitted.status == ListingStatus.AWAITING_PAYMENT
+    assert submitted.status == ListingStatus.IN_REVIEW
     assert submitted.published_at is None
 
 

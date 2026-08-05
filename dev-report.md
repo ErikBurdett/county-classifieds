@@ -1,9 +1,57 @@
 # TheCountyPost Market — Development Report
 
-**Updated:** 2026-07-30  
+**Updated:** 2026-08-04
 **Environment:** local Django 5.2 / Python 3.13 / PostgreSQL 18
 
 ## Current status
+
+### 2026-08-04 public seller profiles, fulfillment, and seller-history retention
+
+Active sellers now have immutable UUID public profiles with public listing
+attribution, approved avatars, bios, HTTPS social/website links, member-since
+data, public-history metrics, and public state/county coverage. Profile edits
+create a pending `SellerProfileRevision`; Django Admin review selects one
+approved revision while preserving the prior approved public content. Public
+profiles never render email, phone, verification state, drafts, review records,
+or rejected listings.
+
+`Listing` now records first-publication and sold-retention timestamps. A sold
+listing remains visible only on its seller's profile for 30 days, is labeled
+Sold, and remains excluded from global browse/search/sitemaps. The
+`clear_expired_sold_publication` command clears elapsed retention timestamps.
+All listing workflows also carry independent pickup, delivery, and shipping
+availability flags. `listings.0021`/`0022` and `accounts.0004`/`0005` were
+applied locally.
+
+### 2026-08-03 static sponsored advertising
+
+`apps.advertising` provides a deployment-managed creative catalog, safe
+external-link attributes, `/partners/`, inline/banner slots, compact sponsors,
+and in-feed ads. In-feed ads use a responsive 300:250 contain layout so source
+assets remain fully visible on all card grids. There is no self-service ad
+sales, targeting, tracking, or advertising billing.
+
+### 2026-08-03 moderation, local payment, image review, and notifications
+
+Seller submission now always enters staff review before payment. Moderators can
+publish immediately with **Approve Without Payment Link**, or approve a
+DEBUG-only local-demo payment action. The latter snapshots a server-owned
+$10 primary-county plus $5-per-additional-county order for every listing type,
+including Wanted; a durable local payment confirmation publishes the already
+approved listing.
+
+Every stored image now has an independent review state. Only approved images
+are public, rejected images remain private with seller-visible feedback, and
+the category's approved-image minimum gates positive outcomes. Existing ready
+images are backfilled as approved; later material edits preserve approval for
+unchanged images and make newly uploaded/replaced images pending.
+
+`apps.notifications` provides recipient-scoped, idempotent notification records,
+an unread header bell, feed, mark-read controls, and server-allowlisted
+same-origin destinations. Lifecycle, payment-ready, payment-complete, and
+selected status events create seller-safe records while the existing outbox
+remains the separate email side-effect boundary. Production Stripe, webhooks,
+and provider pricing remain intentionally out of scope.
 
 ### 2026-07-30 Others overflow vertical
 
@@ -485,7 +533,7 @@ listed in [Production and launch blockers](#production-and-launch-blockers).
 
 ## Migrations applied locally
 
-- `accounts.0001_initial` through `accounts.0003_user_account_status_accountsecurityevent`
+- `accounts.0001_initial` through `accounts.0005_sellerprofilerevision_avatar`
 - `locations.0001_initial`, `locations.0002_county_state_fips_trigger`,
   `locations.0003_referenceimport`, `locations.0004_zipcountyreference`,
   `locations.0005_county_centroid_latitude_county_centroid_longitude_and_more`
@@ -497,11 +545,12 @@ listed in [Production and launch blockers](#production-and-launch-blockers).
   `listings.0005_homedetails_rentaldetails`,
   `listings.0006_agequipmentdetails_livestockdetails_pasturedetails`,
   `listings.0007_homegoodsdetails`, `listings.0008` through
-  `listings.0018_alter_listingcustomfield_normalized_label_and_more`
+  `listings.0022_listing_seller_feed_lifecycle`
 - `billing.0001_initial` through `billing.0003_alter_order_status`
 - `core.0001_initial`
 - `policies.0001_initial`, `policies.0002_policydocument_policies_active_entity_required`
 - `reports.0001_initial`, `reports.0002_alter_listingreport_options`
+- `notifications.0001_initial`
 
 All current migrations are additive. Generated PostgreSQL SQL has been
 reviewed and the local PostgreSQL database migrates cleanly.

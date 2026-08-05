@@ -71,8 +71,9 @@ not_started | discovery | ready | in_progress | blocked | review | done
 ### M1: Identity, seller profile, and phone-verification boundary
 
 **Status:** partially implemented — password reset, account status, staff role
-groups, and security audit events are available locally; DEC-003 phone
-verification and DEC-101 email-verification policy remain unresolved.
+groups, security audit events, and moderated public seller profiles are
+available locally; DEC-003 phone verification and DEC-101 email-verification
+policy remain unresolved.
 
 **Objective:** Establish marketplace identity and seller eligibility without coupling the system irreversibly to one provider.
 
@@ -202,7 +203,7 @@ Each vertical uses `/build-listing-vertical` and includes field/filter documenta
 **Deliverables**
 
 - submission-completeness service
-- paid/free branching into awaiting payment or moderation
+- moderation-first review, followed by publication or an optional payment link
 - moderation queue, claim/assignment, and stale-action handling
 - reason-code management
 - approve/request changes/reject/escalate/suspend/restore services
@@ -231,7 +232,7 @@ Each vertical uses `/build-listing-vertical` and includes field/filter documenta
 - success/cancel status pages
 - signed webhook endpoint
 - idempotent event handlers and replay command
-- payment-to-moderation transition
+- approved-listing payment-to-publication transition
 - staff reconciliation view
 - refund-support primitives according to approved policy
 

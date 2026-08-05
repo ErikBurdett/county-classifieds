@@ -1,0 +1,15 @@
+{% load static %}
+{% if sponsor %}
+  <aside class="compact-sponsor" aria-label="Sponsored">
+    <span class="compact-sponsor__label">Sponsored</span>
+    {% if sponsor.is_internal %}
+      <a href="{% url 'advertising:partners' %}">
+        <img src="{% static 'ad-assets/' %}{{ sponsor.image_name }}" alt="{{ sponsor.alt }}">
+      </a>
+    {% else %}
+      <a href="{{ sponsor.href }}" target="_blank" rel="noopener noreferrer sponsored">
+        <img src="{% static 'ad-assets/' %}{{ sponsor.image_name }}" alt="{{ sponsor.alt }}">
+      </a>
+    {% endif %}
+  </aside>
+{% endif %}
