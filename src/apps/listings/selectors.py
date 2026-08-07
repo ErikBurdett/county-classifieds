@@ -16,6 +16,9 @@ from .models import (
     ListingImageModerationStatus,
     ListingImageState,
     ListingStatus,
+    ListingVideo,
+    ListingVideoModerationStatus,
+    ListingVideoState,
 )
 
 
@@ -107,7 +110,9 @@ def moderation_queue() -> QuerySet[Listing]:
         .select_related(
             "seller__user", "vertical", "category", "state", "county", "assigned_moderator"
         )
-        .prefetch_related("controlled_tags__category", "seller_tags", "custom_fields", "images")
+        .prefetch_related(
+            "controlled_tags__category", "seller_tags", "custom_fields", "images", "videos"
+        )
         .order_by("created_at")
     )
 
@@ -380,11 +385,24 @@ def public_listing_with_images() -> QuerySet[Listing]:
     )
 
 
+def public_listing_with_media() -> QuerySet[Listing]:
+    """Public detail selector with approved images and supplemental videos only."""
+    return public_listing_with_images().prefetch_related(
+        Prefetch(
+            "videos",
+            queryset=ListingVideo.objects.filter(
+                state=ListingVideoState.READY,
+                moderation_status=ListingVideoModerationStatus.APPROVED,
+            ).only("id", "listing_id", "content_type", "byte_size"),
+        )
+    )
+
+
 def public_listing_for_location(*, listing_id: UUID, state_slug: str, county_slug: str) -> Listing:
     """Resolve a canonical public listing without revealing non-public records."""
     try:
         return (
-            public_listing_with_images()
+            public_listing_with_media()
             .filter(pk=listing_id, state__slug=state_slug)
             .filter(Q(county__slug=county_slug) | Q(additional_counties__county__slug=county_slug))
             .distinct()

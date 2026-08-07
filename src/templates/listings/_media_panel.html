@@ -34,3 +34,29 @@
     </form>
   {% endif %}
 </section>
+<section class="panel" aria-labelledby="video-heading">
+  <h2 id="video-heading">Supplemental listing videos</h2>
+  <p>Videos are optional and private until approved by a moderator. MP4 and WebM only, up to 100 MB. Adding or deleting a video on a published listing returns it to moderation.</p>
+  <form method="post" enctype="multipart/form-data" action="{% url 'listings:upload_listing_video' listing.id %}">
+    {% csrf_token %}
+    <label for="id_video">Add video</label>
+    <input id="id_video" name="video" type="file" accept="video/mp4,video/webm" required>
+    <button type="submit">Upload video</button>
+  </form>
+  {% if videos %}
+    <ol>
+      {% for video in videos %}
+        <li>
+          <video controls preload="metadata" width="480">
+            <source src="{% url 'listings:private_listing_video' listing.id video.id %}" type="{{ video.content_type }}">
+            Your browser does not support this video.
+          </video>
+          <p>Review status: {{ video.get_moderation_status_display }}.{% if video.moderation_status == "rejected" %} Reason: {{ video.moderation_reason }}{% endif %}</p>
+          <form method="post" action="{% url 'listings:delete_listing_video' listing.id video.id %}">
+            {% csrf_token %}<button type="submit">Delete video {{ forloop.counter }}</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ol>
+  {% endif %}
+</section>

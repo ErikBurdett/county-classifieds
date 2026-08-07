@@ -13,7 +13,14 @@ from django.utils.cache import patch_vary_headers
 from django.views.decorators.http import require_GET
 
 from apps.advertising.selectors import ads_for_slot, sponsor_for_scope
-from apps.listings.models import ListingImage, ListingImageState
+from apps.listings.models import (
+    ListingImage,
+    ListingImageModerationStatus,
+    ListingImageState,
+    ListingVideo,
+    ListingVideoModerationStatus,
+    ListingVideoState,
+)
 from apps.listings.presenters import present_public_listing
 from apps.listings.selectors import (
     public_listing_for_location,
@@ -303,6 +310,7 @@ def listing_detail(
             ),
         )
     images = list(listing.images.all())
+    videos = list(listing.videos.all())
     return render(
         request,
         "locations/listing_detail.html",
@@ -310,6 +318,7 @@ def listing_detail(
             "listing": listing,
             "presentation": present_public_listing(listing=listing),
             "images": images,
+            "videos": videos,
             "seo_metadata": listing_metadata(
                 request=request,
                 listing=listing,
@@ -326,6 +335,7 @@ def public_listing_image(_request: HttpRequest, image_id: UUID) -> FileResponse:
             ListingImage.objects.filter(
                 pk=image_id,
                 state=ListingImageState.READY,
+                moderation_status=ListingImageModerationStatus.APPROVED,
                 listing__in=public_listings(),
             )
             .only("id", "content_type", "rendition_key")
@@ -335,6 +345,29 @@ def public_listing_image(_request: HttpRequest, image_id: UUID) -> FileResponse:
         raise Http404("Image not found.") from error
     response = FileResponse(
         default_storage.open(image.rendition_key, "rb"), content_type=image.content_type
+    )
+    response["Cache-Control"] = "public, max-age=3600"
+    response["Content-Disposition"] = "inline"
+    return response
+
+
+@require_GET
+def public_listing_video(_request: HttpRequest, video_id: UUID) -> FileResponse:
+    try:
+        video = (
+            ListingVideo.objects.filter(
+                pk=video_id,
+                state=ListingVideoState.READY,
+                moderation_status=ListingVideoModerationStatus.APPROVED,
+                listing__in=public_listings(),
+            )
+            .only("id", "content_type", "storage_key")
+            .get()
+        )
+    except ListingVideo.DoesNotExist as error:
+        raise Http404("Video not found.") from error
+    response = FileResponse(
+        default_storage.open(video.storage_key, "rb"), content_type=video.content_type
     )
     response["Cache-Control"] = "public, max-age=3600"
     response["Content-Disposition"] = "inline"

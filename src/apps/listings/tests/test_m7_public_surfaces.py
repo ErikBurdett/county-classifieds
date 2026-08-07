@@ -334,6 +334,7 @@ def test_public_image_endpoint_allows_only_public_ready_renditions(
         upload_session=upload,
         ordering=1,
         state=ListingImageState.READY,
+        moderation_status=ListingImageModerationStatus.APPROVED,
         content_type="image/jpeg",
         byte_size=1,
         width=1,

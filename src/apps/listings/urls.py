@@ -179,6 +179,11 @@ urlpatterns = [
         name="upload_listing_image",
     ),
     path(
+        "dashboard/drafts/<uuid:listing_id>/media/videos/upload/",
+        views.upload_listing_video_view,
+        name="upload_listing_video",
+    ),
+    path(
         "dashboard/drafts/<uuid:listing_id>/media/reorder/",
         views.reorder_listing_images,
         name="reorder_listing_images",
@@ -189,8 +194,18 @@ urlpatterns = [
         name="delete_listing_image",
     ),
     path(
+        "dashboard/drafts/<uuid:listing_id>/media/videos/<uuid:video_id>/delete/",
+        views.delete_listing_video_view,
+        name="delete_listing_video",
+    ),
+    path(
         "dashboard/drafts/<uuid:listing_id>/media/<uuid:image_id>/<str:rendition>/",
         views.private_listing_image,
         name="private_listing_image",
+    ),
+    path(
+        "dashboard/drafts/<uuid:listing_id>/media/videos/<uuid:video_id>/",
+        views.private_listing_video,
+        name="private_listing_video",
     ),
 ]

@@ -5,6 +5,8 @@ from io import BytesIO
 
 import pytest
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import Client, override_settings
@@ -21,6 +23,10 @@ from apps.listings.models import (
     ListingImageState,
     ListingIntent,
     ListingMediaPolicy,
+    ListingStatus,
+    ListingVideo,
+    ListingVideoModerationStatus,
+    ListingVideoState,
     UploadSessionState,
 )
 from apps.listings.services import (
@@ -29,6 +35,7 @@ from apps.listings.services import (
     finalize_image_upload,
     image_policy_for_listing,
     reorder_images,
+    upload_listing_video,
 )
 from apps.locations.models import County, State
 
@@ -73,6 +80,14 @@ def upload_image(listing: Listing, seller: SellerProfile) -> ListingImage:
         original_filename="hostile-name.jpg",
     )
     return finalize_image_upload(session_id=session.id, seller=seller, uploaded_file=image_upload())
+
+
+def video_upload(*, content: bytes | None = None) -> SimpleUploadedFile:
+    return SimpleUploadedFile(
+        "hostile.<mp4>",
+        content or b"\x00\x00\x00\x18ftypisom" + b"\x00" * 32,
+        content_type="text/plain",
+    )
 
 
 def test_finalized_image_is_reencoded_without_exif(draft: tuple[Listing, SellerProfile]) -> None:
@@ -293,3 +308,108 @@ def test_media_rejects_disabled_expired_and_invalid_requests(
     assert client.get(private_url).status_code == 404
     reorder_url = reverse("listings:reorder_listing_images", kwargs={"listing_id": listing.id})
     assert client.post(reorder_url, {"image_id": str(image.id), "order": "2"}).status_code == 302
+
+
+def test_video_upload_validates_signature_size_and_published_rereview(
+    draft: tuple[Listing, SellerProfile], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    listing, seller = draft
+    with pytest.raises(ValidationError, match="MP4"):
+        upload_listing_video(
+            listing_id=listing.id,
+            seller=seller,
+            uploaded_file=video_upload(content=b"not a video"),
+        )
+    monkeypatch.setattr("apps.listings.services.MAX_VIDEO_BYTES", 10)
+    with pytest.raises(ValidationError, match="100 MB"):
+        upload_listing_video(
+            listing_id=listing.id,
+            seller=seller,
+            uploaded_file=video_upload(),
+        )
+    monkeypatch.setattr("apps.listings.services.MAX_VIDEO_BYTES", 100 * 1024 * 1024)
+    listing.status = ListingStatus.PUBLISHED
+    listing.published_at = timezone.now()
+    listing.save(update_fields=("status", "published_at"))
+
+    video = upload_listing_video(
+        listing_id=listing.id,
+        seller=seller,
+        uploaded_file=video_upload(),
+    )
+    listing.refresh_from_db()
+
+    assert video.content_type == "video/mp4"
+    assert video.state == ListingVideoState.READY
+    assert listing.status == ListingStatus.IN_REVIEW
+
+
+def test_webm_video_upload_is_accepted(draft: tuple[Listing, SellerProfile]) -> None:
+    listing, seller = draft
+
+    video = upload_listing_video(
+        listing_id=listing.id,
+        seller=seller,
+        uploaded_file=video_upload(content=b"\x1aE\xdf\xa3webm" + b"\x00" * 16),
+    )
+
+    assert video.content_type == "video/webm"
+
+
+def test_video_private_routes_require_owner_and_support_delete(
+    draft: tuple[Listing, SellerProfile],
+) -> None:
+    listing, seller = draft
+    video = upload_listing_video(
+        listing_id=listing.id,
+        seller=seller,
+        uploaded_file=video_upload(),
+    )
+    other_user = User.objects.create_user(email="video-other@example.com", password="test-password")
+    SellerProfile.objects.create(user=other_user, display_name="Video Other")
+    client = Client()
+    client.force_login(other_user)
+    private_url = reverse(
+        "listings:private_listing_video",
+        kwargs={"listing_id": listing.id, "video_id": video.id},
+    )
+    assert client.get(private_url).status_code == 404
+    client.force_login(seller.user)
+    assert client.get(private_url).status_code == 200
+    delete_url = reverse(
+        "listings:delete_listing_video",
+        kwargs={"listing_id": listing.id, "video_id": video.id},
+    )
+    assert client.post(delete_url).status_code == 302
+    assert ListingVideo.objects.get(pk=video.id).state == ListingVideoState.DELETED
+
+
+def test_public_video_delivery_requires_individual_approval(
+    draft: tuple[Listing, SellerProfile],
+) -> None:
+    listing, _seller = draft
+    listing.state.is_active = True
+    listing.state.is_network_enabled = True
+    listing.state.save(update_fields=("is_active", "is_network_enabled"))
+    listing.county.is_active = True
+    listing.county.is_network_enabled = True
+    listing.county.save(update_fields=("is_active", "is_network_enabled"))
+    listing.status = ListingStatus.PUBLISHED
+    listing.published_at = timezone.now()
+    listing.save(update_fields=("status", "published_at"))
+    storage_key = f"private-listings/{listing.id}/public-video.mp4"
+    default_storage.save(storage_key, ContentFile(b"\x00\x00\x00\x18ftypisom"))
+    video = ListingVideo.objects.create(
+        listing=listing,
+        content_type="video/mp4",
+        byte_size=12,
+        storage_key=storage_key,
+        original_filename="public.mp4",
+    )
+    client = Client()
+    url = reverse("locations:public_listing_video", kwargs={"video_id": video.id})
+
+    assert client.get(url).status_code == 404
+    video.moderation_status = ListingVideoModerationStatus.APPROVED
+    video.save(update_fields=("moderation_status",))
+    assert client.get(url).status_code == 200

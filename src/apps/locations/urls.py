@@ -15,6 +15,7 @@ urlpatterns = [
         name="in_search_of_state",
     ),
     path("images/<uuid:image_id>/", views.public_listing_image, name="public_listing_image"),
+    path("videos/<uuid:video_id>/", views.public_listing_video, name="public_listing_video"),
     path(
         "<slug:state_slug>/<slug:county_slug>/listing/<uuid:listing_id>/",
         views.listing_detail,

@@ -6,12 +6,14 @@ from datetime import timedelta
 from django.db.models import Count, Min, Q
 from django.utils import timezone
 
+from apps.accounts.models import SellerProfileRevision, SellerProfileRevisionStatus, User
 from apps.billing.models import Order, OrderStatus
 from apps.catalog.models import Category, ListingKind, ListingProduct, Vertical
 from apps.core.models import OutboxEvent
 from apps.listings.models import Listing, ListingStatus, ModerationActionType
 from apps.locations.models import County, State
 from apps.policies.models import PolicyDocument, PolicyDocumentStatus
+from apps.reports.selectors import triage_metrics
 
 
 @dataclass(frozen=True)
@@ -89,3 +91,41 @@ def management_dashboard() -> ManagementDashboard:
         **geography_counts,
         **catalog_counts,
     )
+
+
+def management_notifications(*, user: User) -> tuple[dict[str, str | int], ...]:
+    """Return only staff work queues the current user may open."""
+    notifications: list[dict[str, str | int]] = []
+    if user.has_perm("listings.moderate_listing"):
+        count = Listing.objects.filter(status=ListingStatus.IN_REVIEW).count()
+        if count:
+            notifications.append(
+                {
+                    "title": "Listings awaiting moderation",
+                    "count": count,
+                    "url_name": "listings:moderation_queue",
+                }
+            )
+    if user.has_perm("accounts.change_sellerprofilerevision"):
+        count = SellerProfileRevision.objects.filter(
+            status=SellerProfileRevisionStatus.PENDING
+        ).count()
+        if count:
+            notifications.append(
+                {
+                    "title": "Seller profiles awaiting review",
+                    "count": count,
+                    "url_name": "management_console:profile_review_queue",
+                }
+            )
+    if user.has_perm("reports.triage_listingreport"):
+        count = sum(triage_metrics().values())
+        if count:
+            notifications.append(
+                {
+                    "title": "Listing reports awaiting triage",
+                    "count": count,
+                    "url_name": "reports:queue",
+                }
+            )
+    return tuple(notifications)

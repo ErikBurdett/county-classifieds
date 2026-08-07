@@ -59,6 +59,9 @@ from .models import (
     ListingImageState,
     ListingIntent,
     ListingStatus,
+    ListingVideo,
+    ListingVideoModerationStatus,
+    ListingVideoState,
     ModerationActionType,
     ModerationReasonCode,
 )
@@ -74,6 +77,7 @@ from .services import (
     create_unified_draft,
     create_wanted_draft,
     delete_listing_image,
+    delete_listing_video,
     finalize_image_upload,
     image_policy_for_listing,
     moderate_listing,
@@ -91,6 +95,7 @@ from .services import (
     update_pasture_draft,
     update_rental_draft,
     update_unified_listing,
+    upload_listing_video,
 )
 from .services import create_ag_equipment_draft as create_ag_equipment_draft_service
 from .services import create_appliances_draft as create_appliances_draft_service
@@ -818,16 +823,14 @@ def _media_context(*, listing: Any) -> dict[str, Any]:
         "images": listing.images.filter(state=ListingImageState.READY).order_by("ordering"),
         "required_image_count": required_count,
         "maximum_image_count": maximum_count,
+        "videos": listing.videos.filter(state=ListingVideoState.READY).order_by("created_at"),
     }
 
 
 def _attach_form_images(*, request: HttpRequest, listing: Any, seller: SellerProfile) -> None:
-    """Finalize optional form attachments through the normal owner-only media boundary."""
+    """Finalize optional form media through the normal owner-only boundaries."""
 
     uploaded_files = request.FILES.getlist("images")
-    if not uploaded_files:
-        return
-
     uploaded_count = 0
     for uploaded_file in uploaded_files:
         try:
@@ -849,6 +852,27 @@ def _attach_form_images(*, request: HttpRequest, listing: Any, seller: SellerPro
         messages.success(
             request,
             f"{uploaded_count} image{'s' if uploaded_count != 1 else ''} attached to the listing.",
+        )
+    uploaded_videos = request.FILES.getlist("videos")
+    attached_videos = 0
+    for uploaded_video in uploaded_videos:
+        try:
+            upload_listing_video(
+                listing_id=listing.id,
+                seller=seller,
+                uploaded_file=uploaded_video,
+            )
+        except ValidationError as error:
+            messages.error(request, "; ".join(error.messages))
+        else:
+            attached_videos += 1
+    if attached_videos:
+        messages.success(
+            request,
+            (
+                f"{attached_videos} video{'s' if attached_videos != 1 else ''} "
+                "attached to the listing."
+            ),
         )
 
 
@@ -1589,6 +1613,29 @@ def upload_listing_image(request: HttpRequest, listing_id: UUID) -> HttpResponse
 
 
 @login_required
+def upload_listing_video_view(request: HttpRequest, listing_id: UUID) -> HttpResponse:
+    if request.method != "POST":
+        return HttpResponse(status=405)
+    profile_or_response = _seller_profile_or_redirect(request)
+    if isinstance(profile_or_response, HttpResponse):
+        return profile_or_response
+    get_owned_listing(listing_id=listing_id, seller=profile_or_response)
+    uploaded_file = request.FILES.get("video")
+    if uploaded_file is None:
+        messages.error(request, "Choose a video to upload.")
+        return _media_return(listing_id)
+    try:
+        upload_listing_video(
+            listing_id=listing_id,
+            seller=profile_or_response,
+            uploaded_file=uploaded_file,
+        )
+    except ValidationError as error:
+        messages.error(request, "; ".join(error.messages))
+    return _media_return(listing_id)
+
+
+@login_required
 def reorder_listing_images(request: HttpRequest, listing_id: UUID) -> HttpResponse:
     if request.method != "POST":
         return HttpResponse(status=405)
@@ -1637,6 +1684,27 @@ def delete_listing_image_view(
 
 
 @login_required
+def delete_listing_video_view(
+    request: HttpRequest, listing_id: UUID, video_id: UUID
+) -> HttpResponse:
+    if request.method != "POST":
+        return HttpResponse(status=405)
+    profile_or_response = _seller_profile_or_redirect(request)
+    if isinstance(profile_or_response, HttpResponse):
+        return profile_or_response
+    get_owned_listing(listing_id=listing_id, seller=profile_or_response)
+    try:
+        delete_listing_video(
+            listing_id=listing_id,
+            video_id=video_id,
+            seller=profile_or_response,
+        )
+    except ListingVideo.DoesNotExist as error:
+        raise Http404("Video not found.") from error
+    return _media_return(listing_id)
+
+
+@login_required
 def private_listing_image(
     request: HttpRequest, listing_id: UUID, image_id: UUID, rendition: str
 ) -> HttpResponseBase:
@@ -1663,6 +1731,35 @@ def private_listing_image(
             image.rendition_key if rendition == "preview" else image.storage_key, "rb"
         ),
         content_type=image.content_type,
+    )
+    response["Cache-Control"] = "private, no-store"
+    response["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+    response["Content-Disposition"] = "inline"
+    return response
+
+
+@login_required
+def private_listing_video(
+    request: HttpRequest, listing_id: UUID, video_id: UUID
+) -> HttpResponseBase:
+    if request.user.has_perm("listings.moderate_listing"):
+        if not ListingVideo.objects.filter(listing_id=listing_id).exists():
+            raise Http404("Listing not found.")
+    else:
+        profile_or_response = _seller_profile_or_redirect(request)
+        if isinstance(profile_or_response, HttpResponse):
+            return profile_or_response
+        get_owned_listing(listing_id=listing_id, seller=profile_or_response)
+    try:
+        video = ListingVideo.objects.get(
+            pk=video_id,
+            listing_id=listing_id,
+            state=ListingVideoState.READY,
+        )
+    except ListingVideo.DoesNotExist as error:
+        raise Http404("Video not found.") from error
+    response = FileResponse(
+        default_storage.open(video.storage_key, "rb"), content_type=video.content_type
     )
     response["Cache-Control"] = "private, no-store"
     response["X-Robots-Tag"] = "noindex, nofollow, noarchive"
@@ -1736,6 +1833,20 @@ def moderate_listing_view(request: HttpRequest, listing_id: UUID) -> HttpRespons
                 decision,
                 request.POST.get(f"image_reason_{image_id}", ""),
             )
+        video_decisions: dict[UUID, tuple[ListingVideoModerationStatus, str]] = {}
+        for video_id in request.POST.getlist("pending_video_id"):
+            video_decision = ListingVideoModerationStatus(
+                request.POST[f"video_decision_{video_id}"]
+            )
+            if video_decision not in {
+                ListingVideoModerationStatus.APPROVED,
+                ListingVideoModerationStatus.REJECTED,
+            }:
+                raise ValueError
+            video_decisions[UUID(video_id)] = (
+                video_decision,
+                request.POST.get(f"video_reason_{video_id}", ""),
+            )
         moderate_listing(
             listing_id=listing_id,
             actor=request.user,  # type: ignore[arg-type]
@@ -1745,6 +1856,7 @@ def moderate_listing_view(request: HttpRequest, listing_id: UUID) -> HttpRespons
             internal_note=request.POST.get("internal_note", ""),
             seller_facing_note=request.POST.get("seller_facing_note", ""),
             image_decisions=image_decisions,
+            video_decisions=video_decisions,
         )
         messages.success(request, "Moderation outcome recorded.")
     except (KeyError, ValueError, ModerationReasonCode.DoesNotExist, ValidationError) as error:

@@ -103,10 +103,13 @@
         </div></details>
       {% endif %}
       <details class="form-disclosure" open>
-        <summary>Images <span class="help-text">(optional)</span></summary>
+        <summary>Images and video <span class="help-text">(optional)</span></summary>
         <p class="help-text">Choose one or more JPEG, PNG, or WebP images to attach when you save. Images are validated, re-encoded without EXIF/GPS metadata, and subject to this category's image limit.</p>
         <label for="id_images">Add images</label>
         <input id="id_images" name="images" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+        <p class="help-text">You may also add MP4 or WebM videos up to 100 MB. Videos are supplemental gallery media, require separate approval, and do not replace a required listing image.</p>
+        <label for="id_videos">Add videos</label>
+        <input id="id_videos" name="videos" type="file" accept="video/mp4,video/webm" multiple>
       </details>
       <button type="submit"{% if not editing %} name="save_listing_draft" value="1"{% endif %}>{% if editing %}Save listing changes{% else %}Save listing draft{% endif %}</button>
     {% endif %}

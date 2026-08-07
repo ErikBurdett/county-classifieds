@@ -14,17 +14,25 @@
     <p>{{ presentation.location }}{% if presentation.address %} · {{ presentation.address }}{% endif %}</p>
     <p>Listed by <a href="{% url 'accounts:public_seller_profile' listing.seller.public_id %}">{{ listing.seller.display_name }}</a></p>
   </header>
-  {% if images %}
-  <section class="listing-gallery" aria-label="Listing images">
+  {% if images or videos %}
+  <section class="listing-gallery" aria-label="Listing media">
     {% for image in images %}
       <figure class="listing-gallery-item">
         <img src="{% url 'locations:public_listing_image' image.id %}" alt="{{ listing.title }} image {{ forloop.counter }}" width="{{ image.width }}" height="{{ image.height }}" {% if not forloop.first %}loading="lazy" decoding="async"{% endif %}>
       </figure>
     {% endfor %}
+    {% for video in videos %}
+      <figure class="listing-gallery-item">
+        <video controls preload="metadata" width="640">
+          <source src="{% url 'locations:public_listing_video' video.id %}" type="{{ video.content_type }}">
+          Your browser does not support this video.
+        </video>
+      </figure>
+    {% endfor %}
   </section>
   {% else %}
-  <section class="listing-gallery listing-gallery--empty" aria-label="Listing images">
-    <p>No listing images are available.</p>
+  <section class="listing-gallery listing-gallery--empty" aria-label="Listing media">
+    <p>No listing media are available.</p>
   </section>
   {% endif %}
   <section class="listing-detail-section" aria-labelledby="details-heading">

@@ -12,7 +12,12 @@ from django.test import Client, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
-from apps.accounts.models import User
+from apps.accounts.models import (
+    SellerProfile,
+    SellerProfileRevision,
+    SellerProfileRevisionStatus,
+    User,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -127,6 +132,37 @@ def test_dashboard_links_follow_model_permissions(client: Client) -> None:
     assert "Billing reconciliation" in content
     assert "Policy documents" in content
     assert "Outbox operations" not in content
+
+
+def test_profile_review_queue_uses_profile_review_permission(client: Client) -> None:
+    staff = create_user(email="staff@example.com", staff=True)
+    seller = create_user(email="seller@example.com")
+    profile = SellerProfile.objects.create(user=seller, display_name="Seller")
+    revision = SellerProfileRevision.objects.create(
+        seller_profile=profile, bio="A safe profile description."
+    )
+    client.force_login(staff)
+    queue_url = reverse("management_console:profile_review_queue")
+
+    assert client.get(queue_url).status_code == 403
+    staff.user_permissions.add(
+        Permission.objects.get(
+            content_type__app_label="accounts", codename="change_sellerprofilerevision"
+        )
+    )
+    response = client.get(queue_url)
+    assert response.status_code == 200
+    assert "A safe profile description." in response.content.decode()
+
+    response = client.post(
+        queue_url,
+        {"revision_id": revision.id, "outcome": "approve", "review_note": "Approved."},
+    )
+    assert response.status_code == 302
+    revision.refresh_from_db()
+    profile.refresh_from_db()
+    assert revision.status == SellerProfileRevisionStatus.APPROVED
+    assert profile.current_approved_revision == revision
 
 
 def test_billing_reconciliation_requires_order_view_permission(client: Client) -> None:

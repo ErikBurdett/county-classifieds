@@ -27,6 +27,8 @@ from apps.listings.models import (
     ListingImageState,
     ListingMediaPolicy,
     ListingStatus,
+    ListingVideo,
+    ListingVideoModerationStatus,
     ModerationActionType,
     ModerationReasonCode,
     UploadSession,
@@ -188,3 +190,36 @@ def test_pending_images_need_decisions_and_rejections_gate_required_count(
     assert image.moderation_status == ListingImageModerationStatus.REJECTED
     assert image.moderation_reason == "Image is too blurry."
     assert not public_listing_with_images().filter(pk=listing.id).exists()
+
+
+def test_pending_videos_need_independent_moderation_decisions(
+    review_listing: tuple[Listing, User, County],
+) -> None:
+    listing, moderator, _county = review_listing
+    video = ListingVideo.objects.create(
+        listing=listing,
+        content_type="video/mp4",
+        byte_size=12,
+        storage_key="private/test-video.mp4",
+        original_filename="test.mp4",
+    )
+
+    with pytest.raises(ValidationError, match="Every pending video"):
+        moderate_listing(
+            listing_id=listing.id,
+            actor=moderator,
+            revision=listing.lifecycle_revision,
+            outcome=ModerationActionType.APPROVED_NO_PAYMENT,
+        )
+
+    moderated = moderate_listing(
+        listing_id=listing.id,
+        actor=moderator,
+        revision=listing.lifecycle_revision,
+        outcome=ModerationActionType.APPROVED_NO_PAYMENT,
+        video_decisions={video.id: (ListingVideoModerationStatus.APPROVED, "")},
+    )
+    video.refresh_from_db()
+
+    assert moderated.status == ListingStatus.PUBLISHED
+    assert video.moderation_status == ListingVideoModerationStatus.APPROVED

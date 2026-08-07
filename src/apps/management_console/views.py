@@ -5,17 +5,21 @@ from functools import wraps
 from urllib.parse import urlencode
 
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import login, logout
+from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import csrf_protect
 
+from apps.accounts.models import SellerProfileRevision, SellerProfileRevisionStatus, User
+from apps.accounts.services import review_seller_profile_revision
 from apps.billing.models import OrderStatus
 
 from .forms import StaffAuthenticationForm
-from .selectors import management_dashboard
+from .selectors import management_dashboard, management_notifications
 
 
 def _safe_next_url(request: HttpRequest, next_url: str | None) -> str:
@@ -92,6 +96,14 @@ def _operation_links(request: HttpRequest) -> list[dict[str, str]]:
                 "url": reverse("reports:queue"),
             }
         )
+    if user.has_perm("accounts.change_sellerprofilerevision"):
+        links.append(
+            {
+                "title": "Seller profile reviews",
+                "detail": "Approve or reject submitted public profile revisions.",
+                "url": reverse("management_console:profile_review_queue"),
+            }
+        )
     if user.has_perm("billing.view_order"):
         links.extend(
             (
@@ -130,12 +142,51 @@ def _operation_links(request: HttpRequest) -> list[dict[str, str]]:
 
 @staff_required
 def dashboard(request: HttpRequest) -> HttpResponse:
+    assert isinstance(request.user, User)
     return render(
         request,
         "management_console/dashboard.html",
         {
             "metrics": management_dashboard(),
             "operation_links": _operation_links(request),
+            "management_notifications": management_notifications(user=request.user),
             "is_local_demo": settings.DEBUG,
         },
+    )
+
+
+@staff_required
+def profile_review_queue(request: HttpRequest) -> HttpResponse:
+    assert isinstance(request.user, User)
+    if not request.user.has_perm("accounts.change_sellerprofilerevision"):
+        raise PermissionDenied("You do not have permission to review seller profiles.")
+    if request.method == "POST":
+        revision = get_object_or_404(
+            SellerProfileRevision,
+            pk=request.POST.get("revision_id"),
+            status=SellerProfileRevisionStatus.PENDING,
+        )
+        outcome = request.POST.get("outcome")
+        status = {
+            "approve": SellerProfileRevisionStatus.APPROVED,
+            "reject": SellerProfileRevisionStatus.REJECTED,
+        }.get(outcome or "")
+        if status is None:
+            messages.error(request, "Choose approve or reject.")
+        else:
+            review_seller_profile_revision(
+                revision_id=revision.pk,
+                reviewer=request.user,
+                status=status,
+                note=request.POST.get("review_note", "").strip(),
+            )
+            messages.success(request, "Seller profile revision reviewed.")
+        return redirect("management_console:profile_review_queue")
+    revisions = SellerProfileRevision.objects.filter(
+        status=SellerProfileRevisionStatus.PENDING
+    ).select_related("seller_profile__user")
+    return render(
+        request,
+        "management_console/profile_review_queue.html",
+        {"revisions": revisions},
     )

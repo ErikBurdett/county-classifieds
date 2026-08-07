@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import uuid
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from io import BytesIO
@@ -49,6 +50,9 @@ from .models import (
     ListingMediaPolicy,
     ListingSellerTag,
     ListingStatus,
+    ListingVideo,
+    ListingVideoModerationStatus,
+    ListingVideoState,
     LivestockDetails,
     ModerationAction,
     ModerationActionType,
@@ -63,10 +67,15 @@ from .selectors import public_listings
 from .workflows import ListingWorkflow, resolve_listing_workflow
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
+MAX_VIDEO_BYTES = 100 * 1024 * 1024
 MAX_IMAGE_DIMENSION = 10_000
 UPLOAD_SESSION_LIFETIME_SECONDS = 30 * 60
 DEFAULT_MAXIMUM_IMAGE_COUNT = 12
 ALLOWED_IMAGE_FORMATS = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
+ALLOWED_VIDEO_CONTENT_TYPES = {"video/mp4", "video/webm"}
+MP4_SIGNATURE_MINIMUM_BYTES = 12
+WEBM_SIGNATURE_MINIMUM_BYTES = 8
+VIDEO_SIGNATURE_SCAN_BYTES = 4096
 OWNER_EDITABLE_STATUSES = {
     ListingStatus.DRAFT,
     ListingStatus.CHANGES_REQUESTED,
@@ -1022,6 +1031,58 @@ def _apply_image_moderation(
         )
 
 
+def _apply_video_moderation(
+    *,
+    listing: Listing,
+    actor: User,
+    video_decisions: dict[UUID, tuple[ListingVideoModerationStatus, str]],
+) -> None:
+    """Apply a separate review decision to every pending supplemental video."""
+    ready_videos = list(
+        ListingVideo.objects.select_for_update()
+        .filter(listing=listing, state=ListingVideoState.READY)
+        .order_by("created_at")
+    )
+    pending_ids = {
+        video.id
+        for video in ready_videos
+        if video.moderation_status == ListingVideoModerationStatus.PENDING
+    }
+    if pending_ids != set(video_decisions):
+        raise ValidationError("Every pending video requires an approval or rejection decision.")
+    for video in ready_videos:
+        decision = video_decisions.get(video.id)
+        if decision is None:
+            continue
+        moderation_status, seller_reason = decision
+        if moderation_status == ListingVideoModerationStatus.REJECTED and not seller_reason.strip():
+            raise ValidationError("Rejected videos require a seller-visible reason.")
+        video.moderation_status = moderation_status
+        video.moderation_reason = seller_reason.strip()
+        video.moderated_at = timezone.now()
+        video.moderated_by = actor
+        video.save(
+            update_fields=(
+                "moderation_status",
+                "moderation_reason",
+                "moderated_at",
+                "moderated_by",
+            )
+        )
+        _record_action(
+            listing=listing,
+            actor=actor,
+            action_type=(
+                ModerationActionType.VIDEO_APPROVED
+                if moderation_status == ListingVideoModerationStatus.APPROVED
+                else ModerationActionType.VIDEO_REJECTED
+            ),
+            from_status=listing.status,
+            to_status=listing.status,
+            seller_facing_note=video.moderation_reason,
+        )
+
+
 def _has_required_approved_images(*, listing: Listing) -> bool:
     required_count, _maximum_count = image_policy_for_listing(listing=listing)
     approved_count = ListingImage.objects.filter(
@@ -1043,6 +1104,7 @@ def moderate_listing(  # noqa: PLR0912, PLR0913
     internal_note: str = "",
     seller_facing_note: str = "",
     image_decisions: dict[UUID, tuple[ListingImageModerationStatus, str]] | None = None,
+    video_decisions: dict[UUID, tuple[ListingVideoModerationStatus, str]] | None = None,
 ) -> Listing:
     listing = _locked_moderation_listing(listing_id=listing_id, actor=actor, revision=revision)
     transitions = {
@@ -1072,6 +1134,11 @@ def moderate_listing(  # noqa: PLR0912, PLR0913
         listing=listing,
         actor=actor,
         image_decisions=image_decisions or {},
+    )
+    _apply_video_moderation(
+        listing=listing,
+        actor=actor,
+        video_decisions=video_decisions or {},
     )
     effective_outcome = outcome
     if outcome in {
@@ -1806,4 +1873,63 @@ def delete_listing_image(*, listing_id: UUID, image_id: UUID, seller: SellerProf
         )
     ):
         ListingImage.objects.filter(pk=remaining.pk).update(ordering=offset)
+    _depublish_material_edit(listing=listing, seller=seller, previous=previous)
+
+
+def _validated_video_payload(upload: Any) -> tuple[bytes, str]:
+    declared_size = getattr(upload, "size", 0)
+    if declared_size > MAX_VIDEO_BYTES:
+        raise ValidationError("Videos must be 100 MB or smaller.")
+    payload = cast(bytes, upload.read(MAX_VIDEO_BYTES + 1))
+    if len(payload) > MAX_VIDEO_BYTES:
+        raise ValidationError("Videos must be 100 MB or smaller.")
+    if not payload:
+        raise ValidationError("Choose a video file.")
+    if len(payload) >= MP4_SIGNATURE_MINIMUM_BYTES and payload[4:8] == b"ftyp":
+        return payload, "video/mp4"
+    if (
+        len(payload) >= WEBM_SIGNATURE_MINIMUM_BYTES
+        and payload[:4] == b"\x1aE\xdf\xa3"
+        and b"webm" in payload[:VIDEO_SIGNATURE_SCAN_BYTES].lower()
+    ):
+        return payload, "video/webm"
+    raise ValidationError("Only valid MP4 and WebM videos are accepted.")
+
+
+@transaction.atomic
+def upload_listing_video(
+    *, listing_id: UUID, seller: SellerProfile, uploaded_file: Any
+) -> ListingVideo:
+    """Store an untranscoded supplemental video under the owner lock."""
+    if not settings.LISTING_MEDIA_ENABLED:
+        raise ValidationError("Listing video uploads are not configured in this environment.")
+    listing = _locked_owned_draft(listing_id=listing_id, seller=seller)
+    previous = listing.status
+    payload, content_type = _validated_video_payload(uploaded_file)
+    video_id = uuid.uuid4()
+    storage_key = f"private-listings/{listing.id}/videos/{video_id}/source"
+    default_storage.save(storage_key, ContentFile(payload))
+    video = ListingVideo.objects.create(
+        id=video_id,
+        listing=listing,
+        content_type=content_type,
+        byte_size=len(payload),
+        storage_key=storage_key,
+        original_filename=(getattr(uploaded_file, "name", "") or "")[:255],
+    )
+    _depublish_material_edit(listing=listing, seller=seller, previous=previous)
+    return video
+
+
+@transaction.atomic
+def delete_listing_video(*, listing_id: UUID, video_id: UUID, seller: SellerProfile) -> None:
+    listing = _locked_owned_draft(listing_id=listing_id, seller=seller)
+    previous = listing.status
+    video = ListingVideo.objects.select_for_update().get(
+        pk=video_id, listing=listing, state=ListingVideoState.READY
+    )
+    video.state = ListingVideoState.DELETED
+    video.deleted_at = timezone.now()
+    video.save(update_fields=("state", "deleted_at"))
+    default_storage.delete(video.storage_key)
     _depublish_material_edit(listing=listing, seller=seller, previous=previous)

@@ -959,6 +959,8 @@ class ModerationActionType(models.TextChoices):
     REJECTED = "rejected", "Rejected"
     IMAGE_APPROVED = "image_approved", "Image approved"
     IMAGE_REJECTED = "image_rejected", "Image rejected"
+    VIDEO_APPROVED = "video_approved", "Video approved"
+    VIDEO_REJECTED = "video_rejected", "Video rejected"
     ESCALATED = "escalated", "Escalated"
     SUSPENDED = "suspended", "Suspended"
     POLICY_FLAGGED = "policy_flagged", "Policy flagged"
@@ -1124,6 +1126,17 @@ class ListingImageModerationStatus(models.TextChoices):
     REJECTED = "rejected", "Rejected"
 
 
+class ListingVideoState(models.TextChoices):
+    READY = "ready", "Ready"
+    DELETED = "deleted", "Deleted"
+
+
+class ListingVideoModerationStatus(models.TextChoices):
+    PENDING = "pending", "Pending review"
+    APPROVED = "approved", "Approved"
+    REJECTED = "rejected", "Rejected"
+
+
 class ListingImage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name="images")
@@ -1181,3 +1194,48 @@ class ListingImage(models.Model):
 
     def __str__(self) -> str:
         return f"Image {self.ordering + 1} for {self.listing}"
+
+
+class ListingVideo(models.Model):
+    """Supplemental private video with a separate staff moderation decision."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name="videos")
+    state = models.CharField(
+        max_length=16, choices=ListingVideoState.choices, default=ListingVideoState.READY
+    )
+    moderation_status = models.CharField(
+        max_length=16,
+        choices=ListingVideoModerationStatus.choices,
+        default=ListingVideoModerationStatus.PENDING,
+    )
+    moderation_reason = models.CharField(max_length=500, blank=True)
+    moderated_at = models.DateTimeField(null=True, blank=True)
+    moderated_by = models.ForeignKey(
+        "accounts.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="moderated_listing_videos",
+    )
+    content_type = models.CharField(max_length=32)
+    byte_size = models.PositiveIntegerField()
+    storage_key = models.CharField(max_length=300, unique=True)
+    original_filename = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(byte_size__gte=1),
+                name="listings_video_byte_size_positive",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("listing", "state"), name="listings_video_listing_idx"),
+        ]
+        ordering = ("created_at",)
+
+    def __str__(self) -> str:
+        return f"Video for {self.listing}"

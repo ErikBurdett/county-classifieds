@@ -172,7 +172,7 @@ Each vertical uses `/build-listing-vertical` and includes field/filter documenta
 
 ### M4: Listing media and direct S3 upload
 
-**Objective:** Add secure, high-quality listing photos with a processing lifecycle.
+**Objective:** Add secure listing media with image processing and moderated supplemental video.
 
 **Deliverables**
 
@@ -184,6 +184,9 @@ Each vertical uses `/build-listing-vertical` and includes field/filter documenta
 - local-development storage behavior
 - cleanup of abandoned staging objects
 - upload progress/error UX
+- optional MP4/WebM supplemental uploads (100 MB maximum) with private serving,
+  separate moderation, and approved-only public detail playback; no transcoding
+  or generated posters
 
 **Acceptance gate**
 

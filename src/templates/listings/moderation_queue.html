@@ -38,6 +38,32 @@
             {% endfor %}
           </fieldset>
         {% endif %}
+        {% if listing.videos.all %}
+          <fieldset>
+            <legend>Supplemental video review</legend>
+            {% for video in listing.videos.all %}
+              <div class="form-field">
+                <video controls preload="metadata" width="320">
+                  <source src="{% url 'listings:private_listing_video' listing.id video.id %}" type="{{ video.content_type }}">
+                  Your browser does not support this video.
+                </video>
+                <p>Video {{ forloop.counter }}: {{ video.get_moderation_status_display }}</p>
+                {% if video.moderation_status == "pending" %}
+                  <input type="hidden" form="moderate-{{ listing.id }}" name="pending_video_id" value="{{ video.id }}">
+                  <label for="video-decision-{{ video.id }}">Decision</label>
+                  <select form="moderate-{{ listing.id }}" id="video-decision-{{ video.id }}" name="video_decision_{{ video.id }}">
+                    <option value="approved">Approve video</option>
+                    <option value="rejected">Reject video</option>
+                  </select>
+                  <label for="video-reason-{{ video.id }}">Seller-visible rejection reason</label>
+                  <input form="moderate-{{ listing.id }}" id="video-reason-{{ video.id }}" name="video_reason_{{ video.id }}" type="text">
+                {% elif video.moderation_status == "rejected" %}
+                  <p>Seller-visible reason: {{ video.moderation_reason }}</p>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </fieldset>
+        {% endif %}
         <form id="moderate-{{ listing.id }}" method="post" action="{% url 'listings:moderate_listing' listing.id %}">
           {% csrf_token %}
           <input type="hidden" name="revision" value="{{ listing.lifecycle_revision }}">

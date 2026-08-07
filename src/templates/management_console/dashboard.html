@@ -71,6 +71,24 @@
     </dl>
   </section>
 
+  <section class="management-section" aria-labelledby="management-alerts-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Staff notifications</p>
+        <h2 id="management-alerts-title">Items requiring attention</h2>
+      </div>
+    </div>
+    {% if management_notifications %}
+      <ul class="operation-grid">
+        {% for notification in management_notifications %}
+          <li><a class="operation-card" href="{% url notification.url_name %}"><strong>{{ notification.title }} <span class="notification-count">{{ notification.count }}</span></strong><span>Open the queue to review permitted items.</span><span aria-hidden="true">Open queue →</span></a></li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-state">No moderation items currently require action for your staff permissions.</p>
+    {% endif %}
+  </section>
+
   <section class="management-section" aria-labelledby="operations-title">
     <div class="section-heading">
       <div>

@@ -262,6 +262,7 @@ th { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercas
 .seller-profile__metrics div { padding: var(--space-3); border: 1px solid var(--color-border); background: var(--color-surface-muted); }
 .seller-profile__metrics dt { color: var(--color-text-muted); font-size: 0.85rem; }
 .seller-profile__metrics dd { margin: var(--space-1) 0 0; font-size: 1.5rem; font-weight: 700; }
+.notification-count { display: inline-grid; min-width: 1.5rem; min-height: 1.5rem; place-items: center; padding: 0.1rem 0.35rem; border-radius: 999px; background: var(--color-action); color: var(--color-on-action); font-size: 0.8rem; }
 
 .market-grid,
 .listing-cards {

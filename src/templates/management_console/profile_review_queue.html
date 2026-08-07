@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Seller profile reviews | Management console{% endblock %}
+{% block content %}
+<section class="management-hero" aria-labelledby="profile-review-title">
+  <p class="eyebrow">Management console</p>
+  <h1 id="profile-review-title">Seller profile reviews</h1>
+  <p>Approve only safe biographies, images, and HTTPS links. A seller's previously approved public profile remains visible until a new revision is approved.</p>
+</section>
+<section class="management-section" aria-labelledby="pending-profiles-title">
+  <h2 id="pending-profiles-title">Pending revisions</h2>
+  {% for revision in revisions %}
+    <article class="panel">
+      <h3>{{ revision.seller_profile.display_name }}</h3>
+      <p class="help-text">Submitted {{ revision.submitted_at }}</p>
+      {% if revision.avatar %}<p><strong>Profile image:</strong> uploaded and pending review.</p>{% endif %}
+      {% if revision.bio %}<p>{{ revision.bio|linebreaksbr }}</p>{% endif %}
+      <dl class="listing-details">
+        {% if revision.website_url %}<div><dt>Website</dt><dd>{{ revision.website_url }}</dd></div>{% endif %}
+        {% if revision.facebook_url %}<div><dt>Facebook</dt><dd>{{ revision.facebook_url }}</dd></div>{% endif %}
+        {% if revision.instagram_url %}<div><dt>Instagram</dt><dd>{{ revision.instagram_url }}</dd></div>{% endif %}
+        {% if revision.x_url %}<div><dt>X</dt><dd>{{ revision.x_url }}</dd></div>{% endif %}
+        {% if revision.linkedin_url %}<div><dt>LinkedIn</dt><dd>{{ revision.linkedin_url }}</dd></div>{% endif %}
+        {% if revision.youtube_url %}<div><dt>YouTube</dt><dd>{{ revision.youtube_url }}</dd></div>{% endif %}
+      </dl>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="revision_id" value="{{ revision.id }}">
+        <div class="form-field"><label for="profile-note-{{ revision.id }}">Seller-facing review note</label><textarea id="profile-note-{{ revision.id }}" name="review_note" rows="3"></textarea></div>
+        <p><button name="outcome" value="approve" type="submit">Approve profile</button> <button class="button-secondary" name="outcome" value="reject" type="submit">Reject profile</button></p>
+      </form>
+    </article>
+  {% empty %}
+    <p class="empty-state">No seller profile revisions require review.</p>
+  {% endfor %}
+</section>
+{% endblock %}
